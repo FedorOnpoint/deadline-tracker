@@ -9,6 +9,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"strings"
@@ -99,28 +100,11 @@ func main() {
 		slog.Error("migration_error", "error", err)
 		os.Exit(1)
 	}
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /api/cron/deadlines", app.handle(app.dailyDeadlines))
-	mux.HandleFunc("GET /api/health", app.handle(func(w http.ResponseWriter, r *http.Request) error {
-		if err := db.Ping(r.Context()); err != nil {
-			return err
-		}
-		return respond(w, 200, map[string]string{"status": "ok"})
-	}))
-	mux.HandleFunc("GET /api/catalog", app.handle(app.listCatalog))
-	mux.HandleFunc("POST /api/catalog", app.handle(app.saveCatalog))
-	mux.HandleFunc("PUT /api/catalog/{id}", app.handle(app.saveCatalog))
-	mux.HandleFunc("GET /api/tasks", app.handle(app.listTasks))
-	mux.HandleFunc("POST /api/tasks", app.handle(app.saveTask))
-	mux.HandleFunc("PUT /api/tasks/{id}", app.handle(app.saveTask))
-	mux.HandleFunc("PATCH /api/tasks/{id}", app.handle(app.saveTask))
-	mux.HandleFunc("DELETE /api/tasks/{id}", app.handle(app.deleteTask))
-	mux.HandleFunc("POST /api/demo", app.handle(app.demo))
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
 	}
-	server := &http.Server{Addr: ":" + port, Handler: mux, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 20 * time.Second, IdleTimeout: 60 * time.Second}
+	server := &http.Server{Addr: ":" + port, Handler: app.routes(), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 20 * time.Second, IdleTimeout: 60 * time.Second}
 	if os.Getenv("VERCEL") != "1" {
 		go app.runNotifications(ctx)
 	}
@@ -144,6 +128,14 @@ func (a *App) handle(fn func(http.ResponseWriter, *http.Request) error) http.Han
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		// Reject cross-origin mutations, including form submissions from other sites.
 		if r.Method != "GET" && r.Method != "HEAD" {
+			if origin := r.Header.Get("Origin"); origin != "" {
+				parsed, err := url.Parse(origin)
+				if err != nil || parsed.Host != r.Host || (parsed.Scheme != "https" && parsed.Scheme != "http") {
+					_ = respond(w, 403, map[string]string{"error": "Запрос с другого сайта запрещён"})
+					return
+				}
+			}
+
 			if r.Header.Get("Sec-Fetch-Site") == "cross-site" {
 				_ = respond(w, 403, map[string]string{"error": "Запрос с другого сайта запрещён"})
 				return
@@ -166,6 +158,9 @@ func (a *App) handle(fn func(http.ResponseWriter, *http.Request) error) http.Han
 				switch pe.Code {
 				case "23505":
 					code, message = 409, "Такое название уже существует"
+					if pe.ConstraintName == "users_login" {
+						message = "Этот логин уже занят"
+					}
 				case "23503", "23514", "22007", "22008":
 					code, message = 400, "Проверьте значения полей и справочников"
 				}
@@ -242,6 +237,9 @@ func (a *App) initialize(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
+	}
+	if err = initializeAuth(ctx, tx); err != nil {
+		return err
 	}
 	return tx.Commit(ctx)
 }

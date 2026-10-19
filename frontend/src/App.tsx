@@ -1,12 +1,13 @@
-import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { api } from './api';
+import { Brand } from './Brand';
 import { CatalogManager } from './CatalogManager';
 import { Modal } from './Modal';
 import { TaskCard } from './TaskCard';
 import { TaskForm } from './TaskForm';
 import { emptyFilters, monthKey, monthLabel, selectTasks, taskSections, urgency, urgencyLabels, type Catalog, type Filters, type Task, type TaskSection } from './model';
 
-export default function App() {
+export default function App({ account }: { account: ReactNode }) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [catalog, setCatalog] = useState<Catalog[]>([]);
   const [loading, setLoading] = useState(true);
@@ -80,7 +81,7 @@ export default function App() {
   }
   return <>
     <a className="skip-link" href="#records">К записям</a>
-    <header className="topbar"><div className="topbar-inner"><a href="/" className="brand"><img className="brand-mark" src="/varenik.svg" alt="" width="42" height="42" />дедлайнишная<span className="brand-caption">время подавать дедлайны</span></a><button className="settings" onClick={() => setManage(true)}><span aria-hidden="true">⚙</span> Справочники</button></div></header>
+    <header className="topbar"><div className="topbar-inner"><Brand /><div className="topbar-actions"><button className="settings" onClick={() => setManage(true)}><span aria-hidden="true">⚙</span> Справочники</button>{account}</div></div></header>
     <main>
       <div className="page-heading"><div><div className="eyebrow">МАТЕРИАЛЫ И РАССЫЛКИ</div><h1>Всё в своё время<span className="accent">.</span></h1><p className="subtitle">От подготовки материала до размещения — все сроки в одном месте.</p></div><button className="primary add-button" onClick={() => setForm('new')}><span aria-hidden="true">＋</span> Новая запись</button></div>
       <nav className="section-tabs" aria-label="Разделы задач">{taskSections.map(s => {

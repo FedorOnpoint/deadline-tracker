@@ -18,6 +18,8 @@ services:
     build: ./backend
     environment:
       DATABASE_URL: postgres://deadlines:local_deadlines@postgres:5432/deadlines?sslmode=disable
+      ADMIN_INITIAL_PASSWORD: ${ADMIN_INITIAL_PASSWORD:-}
+      MARIA_INITIAL_PASSWORD: ${MARIA_INITIAL_PASSWORD:-}
     depends_on:
       postgres:
         condition: service_healthy

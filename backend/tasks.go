@@ -16,7 +16,7 @@ const taskJSON = `data || jsonb_build_object('id',id,'platform_id',platform_id,'
 func readTask(ctx context.Context, tx pgx.Tx, id int64) (Task, error) {
 	var t Task
 	var raw []byte
-	err := tx.QueryRow(ctx, "SELECT "+taskJSON+" FROM tasks WHERE id=$1", id).Scan(&raw)
+	err := tx.QueryRow(ctx, "SELECT "+taskJSON+" FROM tasks WHERE id=$1 AND user_id=$2", id, userID(ctx)).Scan(&raw)
 	if err != nil {
 		return t, err
 	}
@@ -24,7 +24,7 @@ func readTask(ctx context.Context, tx pgx.Tx, id int64) (Task, error) {
 	return t, err
 }
 func (a *App) listTasks(w http.ResponseWriter, r *http.Request) error {
-	rows, err := a.db.Query(r.Context(), "SELECT "+taskJSON+" FROM tasks ORDER BY completed,deadline,id")
+	rows, err := a.db.Query(r.Context(), "SELECT "+taskJSON+" FROM tasks WHERE user_id=$1 ORDER BY completed,deadline,id", userID(r.Context()))
 	if err != nil {
 		return err
 	}
@@ -85,7 +85,7 @@ func (a *App) saveTask(w http.ResponseWriter, r *http.Request) error {
 		if err != nil {
 			return err
 		}
-		if err = tx.QueryRow(ctx, "SELECT id FROM tasks WHERE id=$1 FOR UPDATE", id).Scan(&id); err != nil {
+		if err = tx.QueryRow(ctx, "SELECT id FROM tasks WHERE id=$1 AND user_id=$2 FOR UPDATE", id, userID(ctx)).Scan(&id); err != nil {
 			return err
 		}
 		old, err = readTask(ctx, tx, id)
@@ -144,10 +144,10 @@ func (a *App) saveTask(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	if r.Method == "POST" {
-		err = tx.QueryRow(ctx, `INSERT INTO tasks(platform_id,specialty_id,status_id,deadline,email_date,data,completed,completed_at) VALUES($1,$2,$3,$4,NULLIF($5,'')::date,$6,$7,CASE WHEN $7 THEN now() ELSE NULL END) RETURNING id`, t.PlatformID, t.SpecialtyID, t.StatusID, t.Deadline, t.EmailDate, raw, t.Completed).Scan(&id)
+		err = tx.QueryRow(ctx, `INSERT INTO tasks(platform_id,specialty_id,status_id,deadline,email_date,data,completed,completed_at,user_id) VALUES($1,$2,$3,$4,NULLIF($5,'')::date,$6,$7,CASE WHEN $7 THEN now() ELSE NULL END,$8) RETURNING id`, t.PlatformID, t.SpecialtyID, t.StatusID, t.Deadline, t.EmailDate, raw, t.Completed, userID(ctx)).Scan(&id)
 	} else {
 		newCycle := !old.Deadline.Equal(t.Deadline) || (old.Completed && !t.Completed)
-		_, err = tx.Exec(ctx, `UPDATE tasks SET platform_id=$2,specialty_id=$3,status_id=$4,deadline=$5,email_date=NULLIF($6,'')::date,data=$7,completed=$8,completed_at=CASE WHEN $8 THEN coalesce(completed_at,now()) ELSE NULL END,updated_at=now(),cycle=cycle+CASE WHEN $9 THEN 1 ELSE 0 END WHERE id=$1`, id, t.PlatformID, t.SpecialtyID, t.StatusID, t.Deadline, t.EmailDate, raw, t.Completed, newCycle)
+		_, err = tx.Exec(ctx, `UPDATE tasks SET platform_id=$2,specialty_id=$3,status_id=$4,deadline=$5,email_date=NULLIF($6,'')::date,data=$7,completed=$8,completed_at=CASE WHEN $8 THEN coalesce(completed_at,now()) ELSE NULL END,updated_at=now(),cycle=cycle+CASE WHEN $9 THEN 1 ELSE 0 END WHERE id=$1 AND user_id=$10`, id, t.PlatformID, t.SpecialtyID, t.StatusID, t.Deadline, t.EmailDate, raw, t.Completed, newCycle, userID(ctx))
 	}
 	if err != nil {
 		return err
@@ -174,7 +174,7 @@ func (a *App) deleteTask(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	tag, err := a.db.Exec(r.Context(), "DELETE FROM tasks WHERE id=$1", id)
+	tag, err := a.db.Exec(r.Context(), "DELETE FROM tasks WHERE id=$1 AND user_id=$2", id, userID(r.Context()))
 	if err != nil {
 		return err
 	}
@@ -191,7 +191,7 @@ func (a *App) demo(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	defer tx.Rollback(ctx)
-	tag, err := tx.Exec(ctx, "INSERT INTO migrations(name) VALUES('demo_v1') ON CONFLICT DO NOTHING")
+	tag, err := tx.Exec(ctx, "INSERT INTO user_demos(user_id) VALUES($1) ON CONFLICT DO NOTHING", userID(ctx))
 	if err != nil {
 		return err
 	}
@@ -199,7 +199,7 @@ func (a *App) demo(w http.ResponseWriter, r *http.Request) error {
 		return respond(w, 200, map[string]string{"message": "Демонстрационные записи уже создавались. Удалённые записи не восстановлены."})
 	}
 	// Seed only from current, active dictionary values; never resurrect edited dictionaries.
-	rows, err := tx.Query(ctx, "SELECT id FROM catalog WHERE kind='platform' AND NOT archived ORDER BY position,id")
+	rows, err := tx.Query(ctx, "SELECT id FROM catalog WHERE kind='platform' AND NOT archived AND user_id=$1 ORDER BY position,id", userID(ctx))
 	if err != nil {
 		return err
 	}
@@ -221,7 +221,7 @@ func (a *App) demo(w http.ResponseWriter, r *http.Request) error {
 		return invalid("Для примеров нужна хотя бы одна активная площадка")
 	}
 	var statuses []int64
-	rows, err = tx.Query(ctx, "SELECT id FROM catalog WHERE kind='status' AND NOT archived ORDER BY position,id")
+	rows, err = tx.Query(ctx, "SELECT id FROM catalog WHERE kind='status' AND NOT archived AND user_id=$1 ORDER BY position,id", userID(ctx))
 	if err != nil {
 		return err
 	}
@@ -252,7 +252,7 @@ func (a *App) demo(w http.ResponseWriter, r *http.Request) error {
 			email = deadline.Add(24 * time.Hour).Format("2006-01-02")
 		}
 		raw, _ := json.Marshal(map[string]string{"topic": topic, "project": "Тегопразан Эрозивная ГЭРБ", "header": "Практика, которая помогает пациентам", "preheader": "Материалы для медицинских специалистов", "comment": "Демонстрационная запись. Даты заданы относительно момента создания примеров.", "owner": "Анна"})
-		_, err = tx.Exec(ctx, `INSERT INTO tasks(platform_id,status_id,deadline,email_date,data,completed,completed_at) VALUES($1,$2,$3,NULLIF($4,'')::date,$5,$6,CASE WHEN $6 THEN now() ELSE NULL END)`, platforms[i%len(platforms)], status, deadline, email, raw, i >= 8)
+		_, err = tx.Exec(ctx, `INSERT INTO tasks(platform_id,status_id,deadline,email_date,data,completed,completed_at,user_id) VALUES($1,$2,$3,NULLIF($4,'')::date,$5,$6,CASE WHEN $6 THEN now() ELSE NULL END,$7)`, platforms[i%len(platforms)], status, deadline, email, raw, i >= 8, userID(ctx))
 		if err != nil {
 			return err
 		}
@@ -260,6 +260,5 @@ func (a *App) demo(w http.ResponseWriter, r *http.Request) error {
 	if err = tx.Commit(ctx); err != nil {
 		return err
 	}
-	a.checkNotifications(ctx)
 	return respond(w, 201, map[string]string{"message": "Создано 10 демонстрационных записей"})
 }

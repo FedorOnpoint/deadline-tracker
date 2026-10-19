@@ -12,7 +12,7 @@ import (
 )
 
 func (a *App) listCatalog(w http.ResponseWriter, r *http.Request) error {
-	rows, err := a.db.Query(r.Context(), "SELECT id,kind,name,color,position,archived,section FROM catalog ORDER BY kind,position,id")
+	rows, err := a.db.Query(r.Context(), "SELECT id,kind,name,color,position,archived,section FROM catalog WHERE user_id=$1 ORDER BY kind,position,id", userID(r.Context()))
 	if err != nil {
 		return err
 	}
@@ -73,8 +73,12 @@ func (a *App) saveCatalog(w http.ResponseWriter, r *http.Request) error {
 		if err != nil {
 			return err
 		}
+		var ownedID int64
+		if err = tx.QueryRow(ctx, "SELECT id FROM catalog WHERE id=$1 AND user_id=$2 FOR UPDATE", c.ID, userID(ctx)).Scan(&ownedID); err != nil {
+			return err
+		}
 	}
-	if err = tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM catalog WHERE kind=$1 AND lower(btrim(name))=lower($2) AND id<>$3)", c.Kind, c.Name, c.ID).Scan(&duplicate); err != nil {
+	if err = tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM catalog WHERE kind=$1 AND lower(btrim(name))=lower($2) AND id<>$3 AND user_id=$4)", c.Kind, c.Name, c.ID, userID(ctx)).Scan(&duplicate); err != nil {
 		return err
 	}
 	if duplicate {
@@ -84,15 +88,15 @@ func (a *App) saveCatalog(w http.ResponseWriter, r *http.Request) error {
 		if c.Section == "" {
 			c.Section = "special"
 		}
-		if err = tx.QueryRow(ctx, "SELECT coalesce(max(position),-1)+1 FROM catalog WHERE kind=$1", c.Kind).Scan(&c.Position); err != nil {
+		if err = tx.QueryRow(ctx, "SELECT coalesce(max(position),-1)+1 FROM catalog WHERE kind=$1 AND user_id=$2", c.Kind, userID(ctx)).Scan(&c.Position); err != nil {
 			return err
 		}
-		err = tx.QueryRow(ctx, "INSERT INTO catalog(kind,name,color,position,archived,section) VALUES($1,$2,$3,$4,$5,$6) RETURNING id", c.Kind, c.Name, c.Color, c.Position, c.Archived, c.Section).Scan(&c.ID)
+		err = tx.QueryRow(ctx, "INSERT INTO catalog(kind,name,color,position,archived,section,user_id) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING id", c.Kind, c.Name, c.Color, c.Position, c.Archived, c.Section, userID(ctx)).Scan(&c.ID)
 	} else {
 		var oldKind string
 		var oldPosition int
 		var oldSection string
-		if err = tx.QueryRow(ctx, "SELECT kind,position,section FROM catalog WHERE id=$1 FOR UPDATE", c.ID).Scan(&oldKind, &oldPosition, &oldSection); err != nil {
+		if err = tx.QueryRow(ctx, "SELECT kind,position,section FROM catalog WHERE id=$1 AND user_id=$2 FOR UPDATE", c.ID, userID(ctx)).Scan(&oldKind, &oldPosition, &oldSection); err != nil {
 			return err
 		}
 		if oldKind != c.Kind {
@@ -102,14 +106,14 @@ func (a *App) saveCatalog(w http.ResponseWriter, r *http.Request) error {
 			c.Section = oldSection
 		}
 		if c.Position < oldPosition {
-			_, err = tx.Exec(ctx, "UPDATE catalog SET position=position+1 WHERE kind=$1 AND id<>$2 AND position >= $3 AND position < $4", c.Kind, c.ID, c.Position, oldPosition)
+			_, err = tx.Exec(ctx, "UPDATE catalog SET position=position+1 WHERE kind=$1 AND id<>$2 AND position >= $3 AND position < $4 AND user_id=$5", c.Kind, c.ID, c.Position, oldPosition, userID(ctx))
 		} else if c.Position > oldPosition {
-			_, err = tx.Exec(ctx, "UPDATE catalog SET position=position-1 WHERE kind=$1 AND id<>$2 AND position > $3 AND position <= $4", c.Kind, c.ID, oldPosition, c.Position)
+			_, err = tx.Exec(ctx, "UPDATE catalog SET position=position-1 WHERE kind=$1 AND id<>$2 AND position > $3 AND position <= $4 AND user_id=$5", c.Kind, c.ID, oldPosition, c.Position, userID(ctx))
 		}
 		if err != nil {
 			return err
 		}
-		_, err = tx.Exec(ctx, "UPDATE catalog SET name=$2,color=$3,position=$4,archived=$5,section=$6 WHERE id=$1", c.ID, c.Name, c.Color, c.Position, c.Archived, c.Section)
+		_, err = tx.Exec(ctx, "UPDATE catalog SET name=$2,color=$3,position=$4,archived=$5,section=$6 WHERE id=$1 AND user_id=$7", c.ID, c.Name, c.Color, c.Position, c.Archived, c.Section, userID(ctx))
 	}
 	if err != nil {
 		return err
@@ -129,7 +133,7 @@ func validateReference(ctx context.Context, tx pgx.Tx, id *int64, kind string, o
 	}
 	var actualKind string
 	var archived bool
-	err := tx.QueryRow(ctx, "SELECT kind,archived FROM catalog WHERE id=$1 FOR SHARE", *id).Scan(&actualKind, &archived)
+	err := tx.QueryRow(ctx, "SELECT kind,archived FROM catalog WHERE id=$1 AND user_id=$2 FOR SHARE", *id, userID(ctx)).Scan(&actualKind, &archived)
 	if err == pgx.ErrNoRows {
 		return invalid("Значение справочника не найдено")
 	}
