@@ -4,6 +4,7 @@ import { AdminPanel } from './AdminPanel';
 import { api, ApiError } from './api';
 import { Modal } from './Modal';
 import { Brand } from './Brand';
+import { Varenik } from './Varenik';
 
 export type User = { id: number; login: string; name: string; role: 'admin' | 'user'; disabled: boolean; created_at: string };
 
@@ -30,7 +31,7 @@ function Login({ onAuthenticated }: { onAuthenticated: (user: User) => void }) {
     <header className="auth-header"><Brand /></header>
     <main className="auth-layout">
       <section className="auth-welcome" aria-label="Дедлайнишная">
-        <div className="auth-mascot"><img src="/varenik.svg" alt="Улыбающийся вареник" width="180" height="180" /></div>
+        <div className="auth-mascot"><Varenik /></div>
         <div className="eyebrow">СВОЁ МЕСТО ДЛЯ ВАЖНЫХ ДЕЛ</div>
         <h1>Все сроки —<br />на своих местах<span className="accent">.</span></h1>
         <p className="subtitle">Материалы, рассылки и планы.<br />Только ваши проекты. Всё в своё время.</p>
