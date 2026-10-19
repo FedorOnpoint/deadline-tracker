@@ -46,8 +46,8 @@ func LogDeliveryError(id int64, err error) {
 	slog.Error("notification_delivery_error", "task_id", id, "error", err)
 }
 
-func (a *Service) Check(ctx context.Context, id int64) error {
-	tx, err := a.DB.Begin(ctx)
+func (handler *Service) Check(ctx context.Context, id int64) error {
+	tx, err := handler.DB.Begin(ctx)
 	if err != nil {
 		return err
 	}
@@ -71,7 +71,7 @@ func (a *Service) Check(ctx context.Context, id int64) error {
 	if sent {
 		return nil
 	}
-	if err = a.Notifier.Deliver(ctx, n); err != nil {
+	if err = handler.Notifier.Deliver(ctx, n); err != nil {
 		return err
 	}
 	if _, err = tx.Exec(ctx, "INSERT INTO notifications(task_id,cycle,urgency) VALUES($1,$2,$3)", id, n.Cycle, n.Urgency); err != nil {
@@ -79,8 +79,8 @@ func (a *Service) Check(ctx context.Context, id int64) error {
 	}
 	return tx.Commit(ctx)
 }
-func (a *Service) CheckAll(ctx context.Context) error {
-	rows, err := a.DB.Query(ctx, "SELECT id FROM tasks WHERE NOT completed AND deadline <= now()+interval '14 days'")
+func (handler *Service) CheckAll(ctx context.Context) error {
+	rows, err := handler.DB.Query(ctx, "SELECT id FROM tasks WHERE NOT completed AND deadline <= now()+interval '14 days'")
 	if err != nil {
 		LogDeliveryError(0, err)
 		return err
@@ -103,25 +103,25 @@ func (a *Service) CheckAll(ctx context.Context) error {
 	}
 	var deliveryErrors error
 	for _, id := range ids {
-		if err = a.Check(ctx, id); err != nil {
+		if err = handler.Check(ctx, id); err != nil {
 			LogDeliveryError(id, err)
 			deliveryErrors = errors.Join(deliveryErrors, err)
 		}
 	}
 	return deliveryErrors
 }
-func (a *Service) Daily(w http.ResponseWriter, r *http.Request) error {
+func (handler *Service) Daily(w http.ResponseWriter, r *http.Request) error {
 	secret := os.Getenv("CRON_SECRET")
 	if secret == "" || subtle.ConstantTimeCompare([]byte(r.Header.Get("Authorization")), []byte("Bearer "+secret)) != 1 {
 		return &httpx.Error{Code: http.StatusUnauthorized, Message: "Unauthorized"}
 	}
-	if err := a.CheckAll(r.Context()); err != nil {
+	if err := handler.CheckAll(r.Context()); err != nil {
 		return err
 	}
 	return httpx.Respond(w, http.StatusOK, map[string]string{"status": "ok"})
 }
-func (a *Service) Run(ctx context.Context) {
-	a.CheckAll(ctx)
+func (handler *Service) Run(ctx context.Context) {
+	handler.CheckAll(ctx)
 	ticker := time.NewTicker(time.Minute)
 	defer ticker.Stop()
 	for {
@@ -129,7 +129,7 @@ func (a *Service) Run(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			a.CheckAll(ctx)
+			handler.CheckAll(ctx)
 		}
 	}
 }

@@ -15,9 +15,12 @@ import (
 
 func NewHandler(db *pgxpool.Pool, notifier *notifications.Service) http.Handler {
 	authHandler := &auth.Service{DB: db}
-	catalogHandler := &catalog.Handler{DB: db}
-	taskHandler := &tasks.Handler{DB: db, Notifications: notifier}
-	adminHandler := &admin.Handler{DB: db}
+	catalogService := &catalog.Service{Repository: &catalog.PostgresRepository{DB: db}}
+	catalogHandler := &catalog.Handler{Service: catalogService}
+	taskService := &tasks.Service{Repository: &tasks.PostgresRepository{DB: db}, Deadlines: notifier}
+	taskHandler := &tasks.Handler{Service: taskService}
+	adminService := &admin.Service{Repository: &admin.PostgresRepository{DB: db}}
+	adminHandler := &admin.Handler{Service: adminService}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/cron/deadlines", httpx.Handle(notifier.Daily))
 	mux.HandleFunc("GET /api/health", httpx.Handle(func(w http.ResponseWriter, r *http.Request) error {

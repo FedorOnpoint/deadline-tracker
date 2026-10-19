@@ -15,13 +15,11 @@ import (
 var authSchema string
 
 func SeedUserCatalog(ctx context.Context, tx pgx.Tx, id int64) error {
-	names := map[string][]string{"platform": {"База Медзнат", "Отправки Medpoint", "Отправки Onpoint"}, "specialty": {"Gastro", "GP"}, "status": {"Пишем", "На согласовании", "Дорабатываем", "Загружено DROID", "Mhub", "Дизайн", "Согласовано БМ", "Ждем размещение МЗ", "Корректор"}}
-	colors := []string{"#a9b9cf", "#e2be77", "#edaa87", "#b4a1df", "#8ebfd1", "#d39bbb", "#9fc5a3", "#b2c88e", "#c1b4a4"}
-	for kind, values := range names {
+	for kind, values := range defaultCatalogNames {
 		for i, name := range values {
 			color, section := "#aac4d6", "special"
 			if kind == "status" {
-				color = colors[i]
+				color = defaultStatusColors[i]
 			}
 			if kind == "platform" {
 				section = []string{"medznat", "medpoint", "onpoint"}[i]

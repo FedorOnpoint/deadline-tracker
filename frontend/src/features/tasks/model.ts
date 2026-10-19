@@ -11,7 +11,11 @@ export function urgency(task: Pick<Task, 'deadline' | 'completed'>, now: number)
   return 'neutral';
 }
 export const urgencyLabels: Record<Urgency, string> = {
-  done: 'Выполнено', overdue: 'Просрочено', urgent: 'Меньше недели', soon: '7–14 дней', neutral: 'В запасе',
+  done: 'Выполнено',
+  overdue: 'Просрочено',
+  urgent: 'Меньше недели',
+  soon: '7–14 дней',
+  neutral: 'В запасе',
 };
 export function remaining(task: Task, now: number): string {
   if (task.completed) return 'Работа завершена';
@@ -29,36 +33,74 @@ export function localDateTime(value: string) {
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
-export function monthKey(t: Task) { return (t.email_date || localDateTime(t.deadline)).slice(0, 7); }
+export function monthKey(t: Task) {
+  return (t.email_date || localDateTime(t.deadline)).slice(0, 7);
+}
 export function monthLabel(key: string) {
-  return new Date(`${key}-01T12:00:00`).toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
+  return new Date(`${key}-01T12:00:00`).toLocaleDateString('ru-RU', {
+    month: 'long',
+    year: 'numeric',
+  });
 }
 export function formatDate(value: string, withTime = false) {
   if (!value) return 'Не указано';
   return new Date(withTime ? value : `${value}T12:00:00`).toLocaleString('ru-RU', {
-    day: 'numeric', month: 'short', year: 'numeric', ...(withTime ? { hour: '2-digit', minute: '2-digit' } : {}),
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    ...(withTime ? { hour: '2-digit', minute: '2-digit' } : {}),
   });
 }
-export type Filters = { query: string; platform: string; specialty: string; status: string; completion: string; month: string; urgency: string };
-export const emptyFilters: Filters = { query: '', platform: '', specialty: '', status: '', completion: '', month: '', urgency: '' };
+export type Filters = {
+  query: string;
+  platform: string;
+  specialty: string;
+  status: string;
+  completion: string;
+  month: string;
+  urgency: string;
+};
+export const emptyFilters: Filters = {
+  query: '',
+  platform: '',
+  specialty: '',
+  status: '',
+  completion: '',
+  month: '',
+  urgency: '',
+};
 export function selectTasks(tasks: Task[], filters: Filters, sort: string, now: number) {
   const q = filters.query.trim().toLocaleLowerCase('ru-RU');
-  return tasks.filter(t => {
-    if (q && ![t.topic, t.project, t.header, t.preheader, t.comment, t.owner].some(v => v.toLocaleLowerCase('ru-RU').includes(q))) return false;
-    if (filters.platform && String(t.platform_id) !== filters.platform) return false;
-    if (filters.specialty && String(t.specialty_id) !== filters.specialty) return false;
-    if (filters.status && (filters.status === 'unset' ? t.status_id !== null : String(t.status_id) !== filters.status)) return false;
-    if (filters.completion && t.completed !== (filters.completion === 'done')) return false;
-    if (filters.month && monthKey(t) !== filters.month) return false;
-    if (filters.urgency && urgency(t, now) !== filters.urgency) return false;
-    return true;
-  }).sort((a, b) => {
-    if (a.completed !== b.completed) return Number(a.completed) - Number(b.completed);
-    const isEmail = sort.startsWith('email');
-    if (isEmail && !a.email_date !== !b.email_date) return a.email_date ? -1 : 1;
-    const av = isEmail ? a.email_date : a.deadline;
-    const bv = isEmail ? b.email_date : b.deadline;
-    const comparison = isEmail ? av.localeCompare(bv) : new Date(av).getTime() - new Date(bv).getTime();
-    return comparison * (sort.endsWith('desc') ? -1 : 1) || a.id - b.id;
-  });
+  return tasks
+    .filter((t) => {
+      if (
+        q &&
+        ![t.topic, t.project, t.header, t.preheader, t.comment, t.owner].some((v) =>
+          v.toLocaleLowerCase('ru-RU').includes(q),
+        )
+      )
+        return false;
+      if (filters.platform && String(t.platform_id) !== filters.platform) return false;
+      if (filters.specialty && String(t.specialty_id) !== filters.specialty) return false;
+      if (
+        filters.status &&
+        (filters.status === 'unset' ? t.status_id !== null : String(t.status_id) !== filters.status)
+      )
+        return false;
+      if (filters.completion && t.completed !== (filters.completion === 'done')) return false;
+      if (filters.month && monthKey(t) !== filters.month) return false;
+      if (filters.urgency && urgency(t, now) !== filters.urgency) return false;
+      return true;
+    })
+    .sort((a, b) => {
+      if (a.completed !== b.completed) return Number(a.completed) - Number(b.completed);
+      const isEmail = sort.startsWith('email');
+      if (isEmail && !a.email_date !== !b.email_date) return a.email_date ? -1 : 1;
+      const av = isEmail ? a.email_date : a.deadline;
+      const bv = isEmail ? b.email_date : b.deadline;
+      const comparison = isEmail
+        ? av.localeCompare(bv)
+        : new Date(av).getTime() - new Date(bv).getTime();
+      return comparison * (sort.endsWith('desc') ? -1 : 1) || a.id - b.id;
+    });
 }

@@ -56,7 +56,14 @@ func Run() {
 	if port == "" {
 		port = "8080"
 	}
-	server := &http.Server{Addr: ":" + port, Handler: NewHandler(db, notifier), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 20 * time.Second, IdleTimeout: 60 * time.Second}
+	server := &http.Server{
+		Addr:              ":" + port,
+		Handler:           NewHandler(db, notifier),
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      20 * time.Second,
+		IdleTimeout:       60 * time.Second,
+	}
 	if os.Getenv("VERCEL") != "1" {
 		go notifier.Run(ctx)
 	}

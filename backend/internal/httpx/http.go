@@ -10,6 +10,8 @@ import (
 	"net/url"
 	"strings"
 
+	"deadline-tracker/internal/domain"
+
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 )
@@ -49,11 +51,19 @@ func Handle(fn func(http.ResponseWriter, *http.Request) error) http.HandlerFunc 
 		if err := fn(w, r); err != nil {
 			code, message := 500, "Не удалось выполнить запрос. Повторите попытку."
 			var ae *Error
+			var businessError *domain.Error
 			var pe *pgconn.PgError
 			switch {
 			case errors.As(err, &ae):
 				code, message = ae.Code, ae.Message
-			case errors.Is(err, pgx.ErrNoRows):
+			case errors.As(err, &businessError):
+				code, message = 400, businessError.Message
+				if businessError.Kind == domain.Conflict {
+					code = 409
+				} else if businessError.Kind == domain.NotFound {
+					code = 404
+				}
+			case errors.Is(err, pgx.ErrNoRows) || errors.Is(err, domain.ErrNotFound):
 				code, message = 404, "Запись не найдена"
 			case errors.As(err, &pe):
 				switch pe.Code {
