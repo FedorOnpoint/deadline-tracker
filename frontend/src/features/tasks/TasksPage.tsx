@@ -1,13 +1,14 @@
 import { Fragment, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { api } from './api';
-import { Brand } from './Brand';
-import { CatalogManager } from './CatalogManager';
-import { Modal } from './Modal';
+import { api } from '../../shared/api/client';
+import { Brand } from '../../shared/ui/Brand';
+import { CatalogManager } from '../catalog/CatalogManager';
+import { Modal } from '../../shared/ui/Modal';
 import { TaskCard } from './TaskCard';
 import { TaskForm } from './TaskForm';
-import { emptyFilters, monthKey, monthLabel, selectTasks, taskSections, urgency, urgencyLabels, type Catalog, type Filters, type Task, type TaskSection } from './model';
+import { taskSections, type Catalog, type Task, type TaskSection } from '../../shared/types';
+import { emptyFilters, monthKey, monthLabel, selectTasks, urgency, urgencyLabels, type Filters } from './model';
 
-export default function App({ account }: { account: ReactNode }) {
+export default function TasksPage({ account }: { account: ReactNode }) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [catalog, setCatalog] = useState<Catalog[]>([]);
   const [loading, setLoading] = useState(true);

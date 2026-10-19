@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
-import { api } from './api';
-import { Modal } from './Modal';
-import { taskSections, type TaskSection, type Catalog, type CatalogKind } from './model';
+import { api } from '../../shared/api/client';
+import { Modal } from '../../shared/ui/Modal';
+import { taskSections, type TaskSection, type Catalog, type CatalogKind } from '../../shared/types';
 
 const kinds: { key: CatalogKind; label: string }[] = [{ key: 'status', label: 'Статусы' }, { key: 'platform', label: 'Площадки' }, { key: 'specialty', label: 'Специальности' }];
 export function CatalogManager({ catalog, onClose, onSaved }: { catalog: Catalog[]; onClose: () => void; onSaved: () => Promise<void> }) {

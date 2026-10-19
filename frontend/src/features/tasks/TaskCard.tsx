@@ -1,5 +1,6 @@
 import { type CSSProperties } from 'react';
-import { formatDate, localDateTime, remaining, timezone, urgency, urgencyLabels, type Catalog, type Task } from './model';
+import { type Catalog, type Task } from '../../shared/types';
+import { formatDate, localDateTime, remaining, timezone, urgency, urgencyLabels } from './model';
 
 function Field({ label, value }: { label: string; value: string }) {
   return <div className="field"><dt>{label}</dt><dd className={!value ? 'muted' : ''}>{value || 'Не указано'}</dd></div>;

@@ -1,7 +1,8 @@
 import { useState, type FormEvent } from 'react';
-import { api } from './api';
-import { Modal } from './Modal';
-import { localDateTime, timezone, type Catalog, type Task, type TaskInput } from './model';
+import { api } from '../../shared/api/client';
+import { Modal } from '../../shared/ui/Modal';
+import { type Catalog, type Task, type TaskInput } from '../../shared/types';
+import { localDateTime, timezone } from './model';
 
 export function TaskForm({ task, catalog, onClose, onSaved, defaultPlatformID = catalog.find(c => c.kind === 'platform' && !c.archived)?.id || 0 }: { task: Task | null; catalog: Catalog[]; onClose: () => void; onSaved: () => Promise<void>; defaultPlatformID?: number }) {
   const initial = task ? localDateTime(task.deadline) : '';

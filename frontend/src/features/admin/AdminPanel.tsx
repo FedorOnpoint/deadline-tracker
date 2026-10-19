@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { api } from './api';
-import type { User } from './Auth';
-import { Brand } from './Brand';
+import { api } from '../../shared/api/client';
+import type { User } from '../../shared/types';
+import { Brand } from '../../shared/ui/Brand';
 
 type Invitation = { id: number; code?: string; created_at: string; expires_at: string; used_at: string | null; used_by: string; revoked: boolean };
 function date(value: string) { return new Date(value).toLocaleString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }); }

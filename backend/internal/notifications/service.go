@@ -1,4 +1,4 @@
-package main
+package notifications
 
 import (
 	"context"
@@ -8,7 +8,17 @@ import (
 	"net/http"
 	"os"
 	"time"
+
+	"deadline-tracker/internal/domain"
+	"deadline-tracker/internal/httpx"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+type Service struct {
+	DB       *pgxpool.Pool
+	Notifier Notifier
+}
 
 type Notification struct {
 	Type     string    `json:"event"`
@@ -32,12 +42,12 @@ func (ConsoleNotifier) Deliver(ctx context.Context, n Notification) error {
 	slog.Info(n.Type, "task_id", n.TaskID, "cycle", n.Cycle, "topic", n.Topic, "platform", n.Platform, "deadline", n.Deadline, "status", n.Status, "urgency", n.Urgency)
 	return nil
 }
-func slogDeliveryError(id int64, err error) {
+func LogDeliveryError(id int64, err error) {
 	slog.Error("notification_delivery_error", "task_id", id, "error", err)
 }
 
-func (a *App) checkNotification(ctx context.Context, id int64) error {
-	tx, err := a.db.Begin(ctx)
+func (a *Service) Check(ctx context.Context, id int64) error {
+	tx, err := a.DB.Begin(ctx)
 	if err != nil {
 		return err
 	}
@@ -50,7 +60,7 @@ func (a *App) checkNotification(ctx context.Context, id int64) error {
 		return err
 	}
 	n.Type = "deadline_notification"
-	n.Urgency = urgency(n.Deadline, completed, time.Now())
+	n.Urgency = domain.Urgency(n.Deadline, completed, time.Now())
 	if n.Urgency == "neutral" || n.Urgency == "done" {
 		return nil
 	}
@@ -61,7 +71,7 @@ func (a *App) checkNotification(ctx context.Context, id int64) error {
 	if sent {
 		return nil
 	}
-	if err = a.notifier.Deliver(ctx, n); err != nil {
+	if err = a.Notifier.Deliver(ctx, n); err != nil {
 		return err
 	}
 	if _, err = tx.Exec(ctx, "INSERT INTO notifications(task_id,cycle,urgency) VALUES($1,$2,$3)", id, n.Cycle, n.Urgency); err != nil {
@@ -69,10 +79,10 @@ func (a *App) checkNotification(ctx context.Context, id int64) error {
 	}
 	return tx.Commit(ctx)
 }
-func (a *App) checkNotifications(ctx context.Context) error {
-	rows, err := a.db.Query(ctx, "SELECT id FROM tasks WHERE NOT completed AND deadline <= now()+interval '14 days'")
+func (a *Service) CheckAll(ctx context.Context) error {
+	rows, err := a.DB.Query(ctx, "SELECT id FROM tasks WHERE NOT completed AND deadline <= now()+interval '14 days'")
 	if err != nil {
-		slogDeliveryError(0, err)
+		LogDeliveryError(0, err)
 		return err
 	}
 	var ids []int64
@@ -80,7 +90,7 @@ func (a *App) checkNotifications(ctx context.Context) error {
 		var id int64
 		if err = rows.Scan(&id); err != nil {
 			rows.Close()
-			slogDeliveryError(0, err)
+			LogDeliveryError(0, err)
 			return err
 		}
 		ids = append(ids, id)
@@ -88,30 +98,30 @@ func (a *App) checkNotifications(ctx context.Context) error {
 	err = rows.Err()
 	rows.Close()
 	if err != nil {
-		slogDeliveryError(0, err)
+		LogDeliveryError(0, err)
 		return err
 	}
 	var deliveryErrors error
 	for _, id := range ids {
-		if err = a.checkNotification(ctx, id); err != nil {
-			slogDeliveryError(id, err)
+		if err = a.Check(ctx, id); err != nil {
+			LogDeliveryError(id, err)
 			deliveryErrors = errors.Join(deliveryErrors, err)
 		}
 	}
 	return deliveryErrors
 }
-func (a *App) dailyDeadlines(w http.ResponseWriter, r *http.Request) error {
+func (a *Service) Daily(w http.ResponseWriter, r *http.Request) error {
 	secret := os.Getenv("CRON_SECRET")
 	if secret == "" || subtle.ConstantTimeCompare([]byte(r.Header.Get("Authorization")), []byte("Bearer "+secret)) != 1 {
-		return &apiError{http.StatusUnauthorized, "Unauthorized"}
+		return &httpx.Error{Code: http.StatusUnauthorized, Message: "Unauthorized"}
 	}
-	if err := a.checkNotifications(r.Context()); err != nil {
+	if err := a.CheckAll(r.Context()); err != nil {
 		return err
 	}
-	return respond(w, http.StatusOK, map[string]string{"status": "ok"})
+	return httpx.Respond(w, http.StatusOK, map[string]string{"status": "ok"})
 }
-func (a *App) runNotifications(ctx context.Context) {
-	a.checkNotifications(ctx)
+func (a *Service) Run(ctx context.Context) {
+	a.CheckAll(ctx)
 	ticker := time.NewTicker(time.Minute)
 	defer ticker.Stop()
 	for {
@@ -119,7 +129,7 @@ func (a *App) runNotifications(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			a.checkNotifications(ctx)
+			a.CheckAll(ctx)
 		}
 	}
 }

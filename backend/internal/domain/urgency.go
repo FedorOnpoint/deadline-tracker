@@ -1,8 +1,10 @@
-package main
+package domain
 
-import "time"
+import (
+	"time"
+)
 
-func urgency(deadline time.Time, completed bool, now time.Time) string {
+func Urgency(deadline time.Time, completed bool, now time.Time) string {
 	if completed {
 		return "done"
 	}

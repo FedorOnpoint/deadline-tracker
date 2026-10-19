@@ -1,7 +1,7 @@
 import { createRoot } from 'react-dom/client';
-import AuthenticatedApp from './Auth';
+import AuthenticatedApp from './app/AuthGate';
 import '@fontsource-variable/golos-text/index.css';
-import './style.css';
-import './auth.css';
+import './app/styles/base.css';
+import './app/styles/account.css';
 
 createRoot(document.getElementById('root')!).render(<AuthenticatedApp />);

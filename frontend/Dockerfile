@@ -6,7 +6,7 @@ COPY . .
 RUN npm run build
 
 FROM nginx:1.28-alpine
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/dist /usr/share/nginx/html
 COPY --from=build /app/node_modules/@fontsource-variable/golos-text/LICENSE /usr/share/nginx/html/fonts/golos-text-LICENSE.txt
 EXPOSE 80

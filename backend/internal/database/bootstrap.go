@@ -1,4 +1,4 @@
-package main
+package database
 
 import (
 	"context"
@@ -6,13 +6,15 @@ import (
 	"errors"
 	"os"
 
+	"deadline-tracker/internal/security"
+
 	"github.com/jackc/pgx/v5"
 )
 
-//go:embed auth_schema.sql
+//go:embed schema/auth.sql
 var authSchema string
 
-func seedUserCatalog(ctx context.Context, tx pgx.Tx, id int64) error {
+func SeedUserCatalog(ctx context.Context, tx pgx.Tx, id int64) error {
 	names := map[string][]string{"platform": {"База Медзнат", "Отправки Medpoint", "Отправки Onpoint"}, "specialty": {"Gastro", "GP"}, "status": {"Пишем", "На согласовании", "Дорабатываем", "Загружено DROID", "Mhub", "Дизайн", "Согласовано БМ", "Ждем размещение МЗ", "Корректор"}}
 	colors := []string{"#a9b9cf", "#e2be77", "#edaa87", "#b4a1df", "#8ebfd1", "#d39bbb", "#9fc5a3", "#b2c88e", "#c1b4a4"}
 	for kind, values := range names {
@@ -46,11 +48,11 @@ func initializeAuth(ctx context.Context, tx pgx.Tx) error {
 	if adminPassword == "" || mariaPassword == "" {
 		return errors.New("first auth setup requires ADMIN_INITIAL_PASSWORD and MARIA_INITIAL_PASSWORD")
 	}
-	adminHash, err := hashPassword(adminPassword)
+	adminHash, err := security.HashPassword(adminPassword)
 	if err != nil {
 		return err
 	}
-	mariaHash, err := hashPassword(mariaPassword)
+	mariaHash, err := security.HashPassword(mariaPassword)
 	if err != nil {
 		return err
 	}
@@ -79,7 +81,7 @@ func initializeAuth(ctx context.Context, tx pgx.Tx) error {
  CREATE INDEX tasks_user_deadline ON tasks(user_id,completed,deadline);`); err != nil {
 		return err
 	}
-	if err = seedUserCatalog(ctx, tx, adminID); err != nil {
+	if err = SeedUserCatalog(ctx, tx, adminID); err != nil {
 		return err
 	}
 	_, err = tx.Exec(ctx, "INSERT INTO migrations(name) VALUES('auth_ownership_v1')")
