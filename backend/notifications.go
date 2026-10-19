@@ -2,7 +2,11 @@ package main
 
 import (
 	"context"
+	"crypto/subtle"
+	"errors"
 	"log/slog"
+	"net/http"
+	"os"
 	"time"
 )
 
@@ -65,11 +69,11 @@ func (a *App) checkNotification(ctx context.Context, id int64) error {
 	}
 	return tx.Commit(ctx)
 }
-func (a *App) checkNotifications(ctx context.Context) {
+func (a *App) checkNotifications(ctx context.Context) error {
 	rows, err := a.db.Query(ctx, "SELECT id FROM tasks WHERE NOT completed AND deadline <= now()+interval '14 days'")
 	if err != nil {
 		slogDeliveryError(0, err)
-		return
+		return err
 	}
 	var ids []int64
 	for rows.Next() {
@@ -77,7 +81,7 @@ func (a *App) checkNotifications(ctx context.Context) {
 		if err = rows.Scan(&id); err != nil {
 			rows.Close()
 			slogDeliveryError(0, err)
-			return
+			return err
 		}
 		ids = append(ids, id)
 	}
@@ -85,13 +89,26 @@ func (a *App) checkNotifications(ctx context.Context) {
 	rows.Close()
 	if err != nil {
 		slogDeliveryError(0, err)
-		return
+		return err
 	}
+	var deliveryErrors error
 	for _, id := range ids {
 		if err = a.checkNotification(ctx, id); err != nil {
 			slogDeliveryError(id, err)
+			deliveryErrors = errors.Join(deliveryErrors, err)
 		}
 	}
+	return deliveryErrors
+}
+func (a *App) dailyDeadlines(w http.ResponseWriter, r *http.Request) error {
+	secret := os.Getenv("CRON_SECRET")
+	if secret == "" || subtle.ConstantTimeCompare([]byte(r.Header.Get("Authorization")), []byte("Bearer "+secret)) != 1 {
+		return &apiError{http.StatusUnauthorized, "Unauthorized"}
+	}
+	if err := a.checkNotifications(r.Context()); err != nil {
+		return err
+	}
+	return respond(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 func (a *App) runNotifications(ctx context.Context) {
 	a.checkNotifications(ctx)

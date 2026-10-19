@@ -100,6 +100,7 @@ func main() {
 		os.Exit(1)
 	}
 	mux := http.NewServeMux()
+	mux.HandleFunc("GET /api/cron/deadlines", app.handle(app.dailyDeadlines))
 	mux.HandleFunc("GET /api/health", app.handle(func(w http.ResponseWriter, r *http.Request) error {
 		if err := db.Ping(r.Context()); err != nil {
 			return err
@@ -115,8 +116,14 @@ func main() {
 	mux.HandleFunc("PATCH /api/tasks/{id}", app.handle(app.saveTask))
 	mux.HandleFunc("DELETE /api/tasks/{id}", app.handle(app.deleteTask))
 	mux.HandleFunc("POST /api/demo", app.handle(app.demo))
-	server := &http.Server{Addr: ":8080", Handler: mux, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 20 * time.Second, IdleTimeout: 60 * time.Second}
-	go app.runNotifications(ctx)
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+	server := &http.Server{Addr: ":" + port, Handler: mux, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 20 * time.Second, IdleTimeout: 60 * time.Second}
+	if os.Getenv("VERCEL") != "1" {
+		go app.runNotifications(ctx)
+	}
 	go func() {
 		<-ctx.Done()
 		shutdown, cancel := context.WithTimeout(context.Background(), 10*time.Second)
