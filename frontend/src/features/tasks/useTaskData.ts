@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../../shared/api/client';
-import type { Catalog, Task, TaskInput } from '../../shared/types';
+import type { Catalog, SectionDefinition, Task, TaskInput } from '../../shared/types';
 import { taskApi, type TaskChanges } from './api';
 
 export function useTaskData() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [catalog, setCatalog] = useState<Catalog[]>([]);
+  const [sections, setSections] = useState<SectionDefinition[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -15,12 +16,14 @@ export function useTaskData() {
   const [creatingExamples, setCreatingExamples] = useState(false);
 
   const refresh = useCallback(async () => {
-    const [loadedTasks, loadedCatalog] = await Promise.all([
+    const [loadedTasks, loadedCatalog, loadedSections] = await Promise.all([
       taskApi.list(),
       api<Catalog[]>('/catalog'),
+      api<SectionDefinition[]>('/sections'),
     ]);
     setTasks(loadedTasks);
     setCatalog(loadedCatalog);
+    setSections(loadedSections);
   }, []);
 
   const retry = useCallback(async () => {
@@ -110,6 +113,7 @@ export function useTaskData() {
   return {
     tasks,
     catalog,
+    sections,
     loading,
     error,
     notice,

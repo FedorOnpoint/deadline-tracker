@@ -65,6 +65,9 @@ func (handler *Service) Register(w http.ResponseWriter, r *http.Request) error {
 	if err = tx.QueryRow(ctx, "INSERT INTO users(login,name,password_hash) VALUES($1,$2,$3) RETURNING id,login,name,role,disabled,created_at", input.Login, input.Name, hash).Scan(&user.ID, &user.Login, &user.Name, &user.Role, &user.Disabled, &user.CreatedAt); err != nil {
 		return err
 	}
+	if err = database.SeedUserSections(ctx, tx, user.ID); err != nil {
+		return err
+	}
 	if err = database.SeedUserCatalog(ctx, tx, user.ID); err != nil {
 		return err
 	}

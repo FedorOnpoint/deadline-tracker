@@ -75,9 +75,15 @@ export function selectTasks(tasks: Task[], filters: Filters, sort: string, now: 
     .filter((t) => {
       if (
         q &&
-        ![t.topic, t.project, t.header, t.preheader, t.comment, t.owner].some((v) =>
-          v.toLocaleLowerCase('ru-RU').includes(q),
-        )
+        ![
+          t.topic,
+          t.project,
+          t.header,
+          t.preheader,
+          t.comment,
+          t.owner,
+          ...Object.values(t.custom_fields),
+        ].some((v) => v.toLocaleLowerCase('ru-RU').includes(q))
       )
         return false;
       if (filters.platform && String(t.platform_id) !== filters.platform) return false;

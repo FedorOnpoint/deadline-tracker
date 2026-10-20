@@ -8,6 +8,7 @@ import (
 	"deadline-tracker/internal/catalog"
 	"deadline-tracker/internal/httpx"
 	"deadline-tracker/internal/notifications"
+	"deadline-tracker/internal/sections"
 	"deadline-tracker/internal/tasks"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -19,6 +20,7 @@ func NewHandler(db *pgxpool.Pool, notifier *notifications.Service) http.Handler 
 	catalogHandler := &catalog.Handler{Service: catalogService}
 	taskService := &tasks.Service{Repository: &tasks.PostgresRepository{DB: db}, Deadlines: notifier}
 	taskHandler := &tasks.Handler{Service: taskService}
+	sectionHandler := &sections.Handler{Service: &sections.Service{Repository: &sections.PostgresRepository{DB: db}}}
 	adminService := &admin.Service{Repository: &admin.PostgresRepository{DB: db}}
 	adminHandler := &admin.Handler{Service: adminService}
 	mux := http.NewServeMux()
@@ -30,6 +32,10 @@ func NewHandler(db *pgxpool.Pool, notifier *notifications.Service) http.Handler 
 		return httpx.Respond(w, 200, map[string]string{"status": "ok"})
 	}))
 	mux.HandleFunc("GET /api/catalog", httpx.Handle(authHandler.Authenticated(catalogHandler.List, false)))
+	mux.HandleFunc("GET /api/sections", httpx.Handle(authHandler.Authenticated(sectionHandler.List, false)))
+	mux.HandleFunc("POST /api/sections", httpx.Handle(authHandler.Authenticated(sectionHandler.Save, false)))
+	mux.HandleFunc("PUT /api/sections/{key}", httpx.Handle(authHandler.Authenticated(sectionHandler.Save, false)))
+	mux.HandleFunc("DELETE /api/sections/{key}", httpx.Handle(authHandler.Authenticated(sectionHandler.Delete, false)))
 	mux.HandleFunc("POST /api/catalog", httpx.Handle(authHandler.Authenticated(catalogHandler.Save, false)))
 	mux.HandleFunc("PUT /api/catalog/{id}", httpx.Handle(authHandler.Authenticated(catalogHandler.Save, false)))
 	mux.HandleFunc("GET /api/tasks", httpx.Handle(authHandler.Authenticated(taskHandler.List, false)))

@@ -52,5 +52,8 @@ func Initialize(ctx context.Context, db *pgxpool.Pool) error {
 	if err = initializeAuth(ctx, tx); err != nil {
 		return err
 	}
+	if err = initializeSections(ctx, tx); err != nil {
+		return err
+	}
 	return tx.Commit(ctx)
 }

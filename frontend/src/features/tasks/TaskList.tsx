@@ -1,5 +1,5 @@
 import { Fragment } from 'react';
-import type { Catalog, Task } from '../../shared/types';
+import type { CardField, Catalog, Task } from '../../shared/types';
 import { monthKey, monthLabel } from './model';
 import { TaskCard } from './TaskCard';
 import type { TaskChanges } from './api';
@@ -7,6 +7,7 @@ import type { TaskChanges } from './api';
 type TaskListProps = {
   tasks: Task[];
   catalog: Catalog[];
+  fields: CardField[];
   grouped: boolean;
   now: number;
   busyIDs: Set<number>;
@@ -18,6 +19,7 @@ type TaskListProps = {
 export function TaskList({
   tasks,
   catalog,
+  fields,
   grouped,
   now,
   busyIDs,
@@ -52,6 +54,7 @@ export function TaskList({
               key={task.id}
               task={task}
               catalog={catalog}
+              fields={fields}
               now={now}
               busy={busyIDs.has(task.id)}
               onEdit={() => onEdit(task)}

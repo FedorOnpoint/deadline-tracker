@@ -12,7 +12,7 @@ var hexColor = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
 
 func validateItem(c *domain.Catalog) error {
 	c.Name = strings.TrimSpace(c.Name)
-	if c.Section != "" && c.Section != "medznat" && c.Section != "onpoint" && c.Section != "medpoint" && c.Section != "special" {
+	if len(c.Section) > 100 {
 		return domain.Invalid("Выберите раздел задач")
 	}
 	if c.Kind != "platform" && c.Kind != "specialty" && c.Kind != "status" {

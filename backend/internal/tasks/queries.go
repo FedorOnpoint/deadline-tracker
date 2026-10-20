@@ -8,6 +8,7 @@ import (
 )
 
 const taskJSON = `data || jsonb_build_object(
+ 'custom_fields', coalesce(nullif(data->'custom_fields', 'null'::jsonb), '{}'::jsonb),
  'id', id,
  'platform_id', platform_id,
  'specialty_id', specialty_id,

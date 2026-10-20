@@ -6,6 +6,7 @@ import (
 
 	"deadline-tracker/internal/catalog"
 	"deadline-tracker/internal/domain"
+	"deadline-tracker/internal/sections"
 )
 
 type Repository interface {
@@ -22,6 +23,7 @@ type Transaction interface {
 	Update(ctx context.Context, userID, taskID int64, task domain.Task, newCycle bool) error
 	ClaimExamples(ctx context.Context, userID int64) (bool, error)
 	ActiveCatalogIDs(ctx context.Context, userID int64, kind string) ([]int64, error)
+	CardFields(ctx context.Context, userID, platformID int64) ([]domain.CardField, error)
 }
 
 type DeadlineChecker interface {
@@ -45,14 +47,14 @@ func (service *Service) List(ctx context.Context, userID int64) ([]domain.Task, 
 }
 
 func (service *Service) Create(ctx context.Context, userID int64, input domain.Task) (domain.Task, error) {
-	return service.save(ctx, userID, 0, func(domain.Task) domain.Task { return input })
+	return service.save(ctx, userID, 0, false, func(domain.Task) domain.Task { return input })
 }
 
 func (service *Service) Update(ctx context.Context, userID, id int64, input domain.Task) (domain.Task, error) {
 	if id <= 0 {
 		return domain.Task{}, domain.Invalid("Некорректный ID")
 	}
-	return service.save(ctx, userID, id, func(domain.Task) domain.Task { return input })
+	return service.save(ctx, userID, id, false, func(domain.Task) domain.Task { return input })
 }
 
 func (service *Service) Patch(ctx context.Context, userID, id int64, patch TaskPatch) (domain.Task, error) {
@@ -62,7 +64,7 @@ func (service *Service) Patch(ctx context.Context, userID, id int64, patch TaskP
 	if !patch.HasStatus && !patch.HasCompleted {
 		return domain.Task{}, domain.Invalid("Нет изменений")
 	}
-	return service.save(ctx, userID, id, func(task domain.Task) domain.Task {
+	return service.save(ctx, userID, id, true, func(task domain.Task) domain.Task {
 		if patch.HasStatus {
 			task.StatusID = patch.StatusID
 		}
@@ -73,7 +75,7 @@ func (service *Service) Patch(ctx context.Context, userID, id int64, patch TaskP
 	})
 }
 
-func (service *Service) save(ctx context.Context, userID, id int64, apply func(domain.Task) domain.Task) (domain.Task, error) {
+func (service *Service) save(ctx context.Context, userID, id int64, patch bool, apply func(domain.Task) domain.Task) (domain.Task, error) {
 	var result domain.Task
 	err := service.Repository.Transaction(ctx, func(tx Transaction) error {
 		var previous domain.Task
@@ -85,11 +87,26 @@ func (service *Service) save(ctx context.Context, userID, id int64, apply func(d
 			}
 		}
 		task := apply(previous)
+		if task.CustomFields == nil {
+			task.CustomFields = previous.CustomFields
+		}
 		if err := validateTask(&task); err != nil {
 			return err
 		}
 		if err := validateReferences(ctx, tx, userID, task, previous); err != nil {
 			return err
+		}
+		fields, err := tx.CardFields(ctx, userID, task.PlatformID)
+		if err != nil {
+			return err
+		}
+		if err := sections.ValidateValues(fields, task.CustomFields, previous.CustomFields, patch); err != nil {
+			return err
+		}
+		if !patch {
+			if err := validateRequiredFields(task, fields); err != nil {
+				return err
+			}
 		}
 		if id == 0 {
 			id, err = tx.Insert(ctx, userID, task)

@@ -2,7 +2,12 @@ import { ColorDot } from '../../shared/ui/ColorDot';
 import { useState, type FormEvent } from 'react';
 import { api } from '../../shared/api/client';
 import { Modal } from '../../shared/ui/Modal';
-import { taskSections, type TaskSection, type Catalog, type CatalogKind } from '../../shared/types';
+import {
+  type SectionDefinition,
+  type TaskSection,
+  type Catalog,
+  type CatalogKind,
+} from '../../shared/types';
 
 const kinds: { key: CatalogKind; label: string }[] = [
   { key: 'status', label: 'Статусы' },
@@ -11,18 +16,24 @@ const kinds: { key: CatalogKind; label: string }[] = [
 ];
 export function CatalogManager({
   catalog,
+  sections,
+  defaultSection,
+  initialKind = 'status',
   onClose,
   onSaved,
 }: {
   catalog: Catalog[];
+  sections: SectionDefinition[];
+  defaultSection: string;
+  initialKind?: CatalogKind;
   onClose: () => void;
   onSaved: () => Promise<void>;
 }) {
-  const [kind, setKind] = useState<CatalogKind>('status');
+  const [kind, setKind] = useState<CatalogKind>(initialKind);
   const [editing, setEditing] = useState<Catalog | null>(null);
   const [name, setName] = useState('');
   const [color, setColor] = useState('#aac4d6');
-  const [section, setSection] = useState<TaskSection>('special');
+  const [section, setSection] = useState<TaskSection>(defaultSection);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const items = catalog.filter((item) => item.kind === kind);
@@ -52,7 +63,7 @@ export function CatalogManager({
       setEditing(null);
       setName('');
       setColor('#aac4d6');
-      setSection('special');
+      setSection(defaultSection);
     }
   }
   function edit(item: Catalog) {
@@ -83,7 +94,7 @@ export function CatalogManager({
               setKind(k.key);
               setEditing(null);
               setName('');
-              setSection('special');
+              setSection(defaultSection);
               setError('');
             }}
           >
@@ -112,7 +123,7 @@ export function CatalogManager({
           <label>
             Раздел задач
             <select value={section} onChange={(e) => setSection(e.target.value as TaskSection)}>
-              {taskSections.map((taskSection) => (
+              {sections.map((taskSection) => (
                 <option key={taskSection.key} value={taskSection.key}>
                   {taskSection.label}
                 </option>
@@ -150,7 +161,7 @@ export function CatalogManager({
               {item.name}
               {kind === 'platform' && (
                 <small>
-                  {taskSections.find((taskSection) => taskSection.key === item.section)?.label}
+                  {sections.find((taskSection) => taskSection.key === item.section)?.label}
                 </small>
               )}
               {item.archived && <small>В архиве</small>}

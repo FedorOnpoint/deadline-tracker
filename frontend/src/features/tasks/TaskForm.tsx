@@ -1,11 +1,19 @@
 import { useState, type FormEvent } from 'react';
 import { Modal } from '../../shared/ui/Modal';
-import { type Catalog, type Task, type TaskInput } from '../../shared/types';
+import {
+  type Catalog,
+  type SectionDefinition,
+  type Task,
+  type TaskInput,
+} from '../../shared/types';
 import { localDateTime, timezone } from './model';
+import { FieldInput } from '../card-builder/FieldInput';
+import { changeField, fieldValue, isCustomField } from '../card-builder/fields';
 
 export function TaskForm({
   task,
   catalog,
+  sections,
   onClose,
   onSave,
   saving,
@@ -13,6 +21,7 @@ export function TaskForm({
 }: {
   task: Task | null;
   catalog: Catalog[];
+  sections: SectionDefinition[];
   onClose: () => void;
   onSave: (input: TaskInput) => Promise<Task>;
   saving: boolean;
@@ -33,24 +42,29 @@ export function TaskForm({
     preheader: task?.preheader || '',
     comment: task?.comment || '',
     owner: task?.owner || '',
+    custom_fields: task?.custom_fields ?? {},
     completed: task?.completed || false,
   });
   const [error, setError] = useState('');
   const update = <K extends keyof TaskInput>(key: K, value: TaskInput[K]) =>
     setDraft((d) => ({ ...d, [key]: value }));
+  const platform = catalog.find((entry) => entry.id === draft.platform_id);
+  const template = sections.find((entry) => entry.key === platform?.section);
   function options(kind: Catalog['kind'], current: number | null) {
     return catalog
-      .filter((item) => item.kind === kind && (!item.archived || item.id === current))
-      .map((item) => (
-        <option key={item.id} value={item.id}>
-          {item.name}
-          {item.archived ? ' (в архиве)' : ''}
-        </option>
-      ));
+      .filter((entry) => entry.kind === kind && (!entry.archived || entry.id === current))
+      .map((entry) => ({
+        value: String(entry.id),
+        label: entry.name + (entry.archived ? ' (в архиве)' : ''),
+      }));
   }
   async function submit(e: FormEvent) {
     e.preventDefault();
     setError('');
+    if (!template) {
+      setError('Выберите площадку с настроенным разделом');
+      return;
+    }
     if (!draft.topic.trim()) {
       setError('Укажите тему');
       return;
@@ -71,6 +85,14 @@ export function TaskForm({
     try {
       await onSave({
         ...draft,
+        custom_fields: {
+          ...task?.custom_fields,
+          ...Object.fromEntries(
+            template.fields
+              .filter(isCustomField)
+              .map((field) => [field.id, fieldValue(draft, field)]),
+          ),
+        },
         deadline: unchanged ? task.deadline : deadline.toISOString(),
       });
       onClose();
@@ -91,141 +113,93 @@ export function TaskForm({
           Отдельная запись для каждого размещения или отправки.{' '}
           <span className="muted">* Обязательные поля</span>
         </p>
-        <label>
-          Тема *
-          <textarea
-            required
-            data-autofocus
-            maxLength={20000}
-            rows={3}
-            value={draft.topic}
-            onChange={(e) => update('topic', e.target.value)}
-            placeholder="О чём этот материал?"
-          />
-        </label>
-        <div className="form-grid">
+        {template && <p className="template-caption">Шаблон раздела «{template.label}»</p>}
+        {template?.fields
+          .filter((field) => field.visibility !== 'hidden')
+          .map((field) => {
+            if (field.id === 'deadline')
+              return (
+                <fieldset key={field.id}>
+                  <legend>{field.label} *</legend>
+                  <div className="form-grid">
+                    <label>
+                      Дата
+                      <input
+                        type="date"
+                        min="1900-01-01"
+                        max="9999-12-31"
+                        required
+                        value={date}
+                        onChange={(event) => setDate(event.target.value)}
+                      />
+                    </label>
+                    <label>
+                      Время (необязательно)
+                      <input
+                        type="time"
+                        value={time}
+                        onChange={(event) => setTime(event.target.value)}
+                      />
+                    </label>
+                  </div>
+                  <p className="hint">
+                    Часовой пояс: {timezone}.{' '}
+                    {!time && 'Без уточнения времени: 23:59 выбранной даты.'}
+                  </p>
+                </fieldset>
+              );
+            let choices;
+            if (field.id === 'platform_id') choices = options('platform', draft.platform_id);
+            if (field.id === 'specialty_id') choices = options('specialty', draft.specialty_id);
+            return (
+              <FieldInput
+                key={field.id}
+                field={field}
+                value={fieldValue(draft, field)}
+                options={choices}
+                onChange={(value) => setDraft((previous) => changeField(previous, field, value))}
+              />
+            );
+          })}
+        {!template && (
           <label>
             Площадка *
             <select
               required
               value={draft.platform_id || ''}
-              onChange={(e) => update('platform_id', Number(e.target.value))}
+              onChange={(event) => update('platform_id', Number(event.target.value))}
             >
-              <option value="" disabled>
-                Выберите площадку
+              <option value="">Выберите площадку</option>
+              {options('platform', draft.platform_id).map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <span className="hint">Добавьте площадку для этого раздела в справочниках.</span>
+          </label>
+        )}
+        <label>
+          Рабочий статус
+          <select
+            value={draft.status_id ?? ''}
+            onChange={(event) =>
+              update('status_id', event.target.value ? Number(event.target.value) : null)
+            }
+          >
+            <option value="">Не задан</option>
+            {options('status', draft.status_id).map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
               </option>
-              {options('platform', draft.platform_id)}
-            </select>
-          </label>
-          <label>
-            Специальность
-            <select
-              value={draft.specialty_id ?? ''}
-              onChange={(e) =>
-                update('specialty_id', e.target.value ? Number(e.target.value) : null)
-              }
-            >
-              <option value="">Не указано</option>
-              {options('specialty', draft.specialty_id)}
-            </select>
-          </label>
-        </div>
-        <fieldset>
-          <legend>Срок загрузки в Mhub+ *</legend>
-          <div className="form-grid">
-            <label>
-              Дата загрузки
-              <input
-                type="date"
-                min="1900-01-01"
-                max="9999-12-31"
-                required
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-              />
-            </label>
-            <label>
-              Время (необязательно)
-              <input type="time" value={time} onChange={(e) => setTime(e.target.value)} />
-            </label>
-          </div>
-          <p className="hint">
-            Часовой пояс: {timezone}.{' '}
-            {!time ? 'Без уточнения времени: 23:59 выбранной даты.' : `Время загрузки: ${time}.`}
-          </p>
-        </fieldset>
-        <div className="form-grid">
-          <label>
-            Дата (e-mail)
-            <input
-              type="date"
-              min="1900-01-01"
-              max="9999-12-31"
-              value={draft.email_date}
-              onChange={(e) => update('email_date', e.target.value)}
-            />
-          </label>
-          <label>
-            Рабочий статус
-            <select
-              value={draft.status_id ?? ''}
-              onChange={(e) => update('status_id', e.target.value ? Number(e.target.value) : null)}
-            >
-              <option value="">Не задан</option>
-              {options('status', draft.status_id)}
-            </select>
-          </label>
-        </div>
+            ))}
+          </select>
+        </label>
         {draft.email_date && date && draft.email_date < date && (
           <p className="warning" role="status">
             Дата e-mail раньше срока загрузки. Запись можно сохранить.
           </p>
         )}
-        <label>
-          Материал / проект
-          <input
-            maxLength={20000}
-            value={draft.project}
-            onChange={(e) => update('project', e.target.value)}
-          />
-        </label>
-        <div className="form-grid">
-          <label>
-            Хедер
-            <textarea
-              rows={3}
-              maxLength={20000}
-              value={draft.header}
-              onChange={(event) => update('header', event.target.value)}
-            />
-          </label>
-          <label>
-            Прехедер
-            <textarea
-              rows={3}
-              maxLength={20000}
-              value={draft.preheader}
-              onChange={(event) => update('preheader', event.target.value)}
-            />
-          </label>
-        </div>
-        <label>
-          Комментарий
-          <textarea
-            rows={3}
-            maxLength={20000}
-            value={draft.comment}
-            onChange={(e) => update('comment', e.target.value)}
-          />
-        </label>
-        <label>
-          Ответственный
-          <input
-            maxLength={20000}
-            value={draft.owner}
-            onChange={(e) => update('owner', e.target.value)}
-          />
-        </label>
         <label className="check">
           <input
             type="checkbox"
@@ -243,7 +217,7 @@ export function TaskForm({
           <button type="button" disabled={saving} onClick={onClose}>
             Отмена
           </button>
-          <button className="primary" disabled={saving}>
+          <button className="primary" disabled={saving || !template}>
             {saving ? 'Сохранение…' : 'Сохранить запись'}
           </button>
         </div>

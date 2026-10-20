@@ -1,11 +1,20 @@
 export type CatalogKind = 'platform' | 'specialty' | 'status';
-export type TaskSection = 'medznat' | 'onpoint' | 'medpoint' | 'special';
-export const taskSections: { key: TaskSection; label: string }[] = [
-  { key: 'medznat', label: 'Медзнат' },
-  { key: 'onpoint', label: 'Онпоинт' },
-  { key: 'medpoint', label: 'Медпоинт' },
-  { key: 'special', label: 'Спецпроекты' },
-];
+export type TaskSection = string;
+export type CardField = {
+  id: string;
+  label: string;
+  type: 'text' | 'textarea' | 'number' | 'date' | 'datetime' | 'select' | 'checkbox' | 'catalog';
+  required: boolean;
+  visibility: 'summary' | 'details' | 'hidden';
+  options?: string[];
+};
+export type SectionDefinition = {
+  key: TaskSection;
+  label: string;
+  position: number;
+  revision: number;
+  fields: CardField[];
+};
 export type Catalog = {
   id: number;
   kind: CatalogKind;
@@ -28,6 +37,7 @@ export type Task = {
   preheader: string;
   comment: string;
   owner: string;
+  custom_fields: Record<string, string>;
   completed: boolean;
   completed_at: string | null;
   created_at: string;

@@ -33,3 +33,17 @@ func validateTask(task *domain.Task) error {
 	}
 	return nil
 }
+
+func validateRequiredFields(task domain.Task, fields []domain.CardField) error {
+	values := map[string]string{"email_date": task.EmailDate, "project": task.Project, "owner": task.Owner, "header": task.Header, "preheader": task.Preheader, "comment": task.Comment}
+	for _, field := range fields {
+		if !field.Required {
+			continue
+		}
+		value, exists := values[field.ID]
+		if (exists && strings.TrimSpace(value) == "") || (field.ID == "specialty_id" && task.SpecialtyID == nil) {
+			return domain.Invalid("Заполните поле «" + field.Label + "»")
+		}
+	}
+	return nil
+}

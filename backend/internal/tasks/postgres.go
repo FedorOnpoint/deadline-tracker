@@ -108,14 +108,26 @@ func (repo *postgresTransaction) Update(ctx context.Context, userID, id int64, t
 }
 
 func taskData(task domain.Task) ([]byte, error) {
-	return json.Marshal(map[string]string{
-		"topic":     task.Topic,
-		"project":   task.Project,
-		"header":    task.Header,
-		"preheader": task.Preheader,
-		"comment":   task.Comment,
-		"owner":     task.Owner,
+	return json.Marshal(map[string]any{
+		"topic":         task.Topic,
+		"project":       task.Project,
+		"header":        task.Header,
+		"preheader":     task.Preheader,
+		"comment":       task.Comment,
+		"owner":         task.Owner,
+		"custom_fields": task.CustomFields,
 	})
+}
+
+func (repo *postgresTransaction) CardFields(ctx context.Context, userID, platformID int64) ([]domain.CardField, error) {
+	var raw []byte
+	err := repo.tx.QueryRow(ctx, `SELECT s.fields FROM task_sections s JOIN catalog c ON c.user_id=s.user_id AND c.section=s.key WHERE c.user_id=$1 AND c.id=$2 FOR SHARE OF s,c`, userID, platformID).Scan(&raw)
+	if err != nil {
+		return nil, err
+	}
+	var fields []domain.CardField
+	err = json.Unmarshal(raw, &fields)
+	return fields, err
 }
 
 func (repo *postgresTransaction) ClaimExamples(ctx context.Context, userID int64) (bool, error) {
