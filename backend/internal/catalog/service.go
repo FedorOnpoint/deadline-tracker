@@ -12,6 +12,7 @@ type Repository interface {
 }
 
 type Transaction interface {
+	ReferenceReader
 	Lock(ctx context.Context, userID, itemID int64) (domain.Catalog, error)
 	NameExists(ctx context.Context, userID int64, item domain.Catalog) (bool, error)
 	NextPosition(ctx context.Context, userID int64, kind string) (int, error)
@@ -37,6 +38,18 @@ func (service *Service) Save(ctx context.Context, userID, id int64, item domain.
 			item.ID = id
 			previous, err = tx.Lock(ctx, userID, id)
 			if err != nil {
+				return err
+			}
+		}
+		for _, platformID := range item.PlatformIDs {
+			var oldID *int64
+			for _, previousID := range previous.PlatformIDs {
+				if previousID == platformID {
+					value := platformID
+					oldID = &value
+				}
+			}
+			if err := ValidateReference(ctx, tx, userID, &platformID, "platform", oldID, true); err != nil {
 				return err
 			}
 		}

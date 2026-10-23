@@ -72,13 +72,13 @@ func (repo *postgresTransaction) Insert(ctx context.Context, userID int64, task 
 	err = repo.tx.QueryRow(ctx, `
  INSERT INTO tasks(
    platform_id, specialty_id, status_id, deadline, email_date,
-   data, completed, completed_at, user_id
+   data, completed, completed_at, user_id, section
  ) VALUES(
    $1, $2, $3, $4, NULLIF($5, '')::date,
-   $6, $7, CASE WHEN $7 THEN now() ELSE NULL END, $8
+   $6, $7, CASE WHEN $7 THEN now() ELSE NULL END, $8, $9
  ) RETURNING id`,
-		task.PlatformID, task.SpecialtyID, task.StatusID, task.Deadline,
-		task.EmailDate, raw, task.Completed, userID,
+		nullPlatform(task.PlatformID), task.SpecialtyID, task.StatusID, task.Deadline,
+		task.EmailDate, raw, task.Completed, userID, task.Section,
 	).Scan(&id)
 	return id, err
 }
@@ -91,6 +91,7 @@ func (repo *postgresTransaction) Update(ctx context.Context, userID, id int64, t
 	_, err = repo.tx.Exec(ctx, `
  UPDATE tasks SET
    platform_id = $2,
+   section = $11,
    specialty_id = $3,
    status_id = $4,
    deadline = $5,
@@ -101,27 +102,40 @@ func (repo *postgresTransaction) Update(ctx context.Context, userID, id int64, t
    updated_at = now(),
    cycle = cycle + CASE WHEN $9 THEN 1 ELSE 0 END
  WHERE id = $1 AND user_id = $10`,
-		id, task.PlatformID, task.SpecialtyID, task.StatusID, task.Deadline,
-		task.EmailDate, raw, task.Completed, newCycle, userID,
+		id, nullPlatform(task.PlatformID), task.SpecialtyID, task.StatusID, task.Deadline,
+		task.EmailDate, raw, task.Completed, newCycle, userID, task.Section,
 	)
 	return err
 }
 
 func taskData(task domain.Task) ([]byte, error) {
 	return json.Marshal(map[string]any{
-		"topic":         task.Topic,
-		"project":       task.Project,
-		"header":        task.Header,
-		"preheader":     task.Preheader,
-		"comment":       task.Comment,
-		"owner":         task.Owner,
-		"custom_fields": task.CustomFields,
+		"specialty_ids":  task.SpecialtyIDs,
+		"sms":            task.SMS,
+		"topic":          task.Topic,
+		"project":        task.Project,
+		"header":         task.Header,
+		"preheader":      task.Preheader,
+		"comment":        task.Comment,
+		"owner":          task.Owner,
+		"custom_fields":  task.CustomFields,
+		"fields":         task.Fields,
+		"base_date":      task.BaseDate,
+		"deadline_field": task.DeadlineField,
+		"timezone":       task.Timezone,
 	})
 }
 
-func (repo *postgresTransaction) CardFields(ctx context.Context, userID, platformID int64) ([]domain.CardField, error) {
+func nullPlatform(id int64) any {
+	if id == 0 {
+		return nil
+	}
+	return id
+}
+
+func (repo *postgresTransaction) CardFields(ctx context.Context, userID int64, section string) ([]domain.CardField, error) {
 	var raw []byte
-	err := repo.tx.QueryRow(ctx, `SELECT s.fields FROM task_sections s JOIN catalog c ON c.user_id=s.user_id AND c.section=s.key WHERE c.user_id=$1 AND c.id=$2 FOR SHARE OF s,c`, userID, platformID).Scan(&raw)
+	err := repo.tx.QueryRow(ctx, `SELECT fields FROM task_sections WHERE user_id=$1 AND key=$2 FOR SHARE`, userID, section).Scan(&raw)
 	if err != nil {
 		return nil, err
 	}

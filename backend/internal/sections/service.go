@@ -59,6 +59,9 @@ func (s *Service) Save(ctx context.Context, userID int64, key string, input doma
 			if err := ValidateFields(input.Fields, old.Fields); err != nil {
 				return err
 			}
+			if err := ValidateDeadlineField(input.Fields, input.DeadlineField); err != nil {
+				return err
+			}
 			input.Key = key
 			input.Revision++
 			if input.Position >= len(all) {
@@ -116,7 +119,7 @@ func (s *Service) Delete(ctx context.Context, userID int64, key string) error {
 			return err
 		}
 		if used {
-			return domain.AlreadyExists("Сначала перенесите площадки в другой раздел через справочники. Связанные записи переместятся вместе с ними.")
+			return domain.AlreadyExists("Раздел содержит карточки или площадки. Сначала перенесите их в другой раздел.")
 		}
 		if err := tx.Delete(ctx, userID, key); err != nil {
 			return err

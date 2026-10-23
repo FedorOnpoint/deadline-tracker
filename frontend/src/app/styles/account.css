@@ -13,14 +13,27 @@
   padding: 6px 10px;
   font-size: 13px;
 }
+.appearance-settings {
+  display: grid;
+  gap: 16px;
+  margin-bottom: 24px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--border);
+}
+.appearance-settings h3 {
+  font-size: 16px;
+}
+.appearance-settings .hint {
+  margin-top: 0;
+}
 .avatar {
   width: 30px;
   height: 30px;
   display: inline-grid;
   place-items: center;
-  border: 1px solid #466455;
+  border: 1px solid var(--accent-border, #466455);
   border-radius: 50%;
-  background: #25372e;
+  background: var(--accent-bg, #25372e);
   color: var(--accent);
   font-size: 14px;
   font-weight: 600;
@@ -62,13 +75,13 @@
   height: 230px;
   display: block;
   padding: 0;
-  background: #1b2923;
-  border: 1px solid #344c40;
+  background: var(--accent-bg, #1b2923);
+  border: 1px solid var(--accent-border, #344c40);
   border-radius: 50%;
   margin-bottom: 36px;
 }
 .auth-mascot:hover:not(:disabled) {
-  background: #1b2923;
+  background: var(--accent-bg, #1b2923);
 }
 .auth-mascot-art {
   display: block;
@@ -233,7 +246,7 @@
 }
 .invitation-status {
   border: 1px solid var(--border);
-  background: #252d35;
+  background: var(--neutral-bg, #252d35);
   border-radius: var(--radius-small);
   padding: 6px 10px;
   font-size: 12px;
@@ -241,9 +254,9 @@
   white-space: nowrap;
 }
 .invitation-status.active {
-  background: #25372e;
+  background: var(--accent-bg, #25372e);
   color: var(--accent);
-  border-color: #466455;
+  border-color: var(--accent-border, #466455);
 }
 .admin-empty {
   padding: 28px 24px;
@@ -252,8 +265,8 @@
   line-height: 1.8;
 }
 .invite-result {
-  border: 1px solid #466455;
-  background: #1e2c25;
+  border: 1px solid var(--accent-border, #466455);
+  background: var(--accent-bg, #1e2c25);
   border-radius: var(--radius-panel);
   padding: 24px;
   margin-bottom: 28px;
@@ -274,7 +287,7 @@
   user-select: all;
   font-size: clamp(14px, 2.2vw, 22px);
   line-height: 1.6;
-  color: #bef0d6;
+  color: var(--success-text, #bef0d6);
   overflow-wrap: anywhere;
   min-width: 0;
 }

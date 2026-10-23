@@ -18,7 +18,7 @@ type queryer interface {
 }
 
 func list(ctx context.Context, db queryer, userID int64, lock bool) ([]domain.TaskSection, error) {
-	sql := "SELECT key,label,position,revision,fields FROM task_sections WHERE user_id=$1 ORDER BY position,key"
+	sql := "SELECT key,label,position,revision,fields,deadline_field FROM task_sections WHERE user_id=$1 ORDER BY position,key"
 	if lock {
 		sql += " FOR UPDATE"
 	}
@@ -31,7 +31,7 @@ func list(ctx context.Context, db queryer, userID int64, lock bool) ([]domain.Ta
 	for rows.Next() {
 		var section domain.TaskSection
 		var raw []byte
-		if err := rows.Scan(&section.Key, &section.Label, &section.Position, &section.Revision, &raw); err != nil {
+		if err := rows.Scan(&section.Key, &section.Label, &section.Position, &section.Revision, &raw, &section.DeadlineField); err != nil {
 			return nil, err
 		}
 		if err := json.Unmarshal(raw, &section.Fields); err != nil {
@@ -72,13 +72,13 @@ func (r *postgresTransaction) Update(ctx context.Context, userID int64, section 
 	if err != nil {
 		return err
 	}
-	_, err = r.tx.Exec(ctx, "UPDATE task_sections SET label=$3,position=$4,revision=$5,fields=$6 WHERE user_id=$1 AND key=$2", userID, section.Key, section.Label, section.Position, section.Revision, raw)
+	_, err = r.tx.Exec(ctx, "UPDATE task_sections SET label=$3,position=$4,revision=$5,fields=$6,deadline_field=$7 WHERE user_id=$1 AND key=$2", userID, section.Key, section.Label, section.Position, section.Revision, raw, section.DeadlineField)
 	return err
 }
 
 func (r *postgresTransaction) InUse(ctx context.Context, userID int64, key string) (bool, error) {
 	var used bool
-	err := r.tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM catalog WHERE user_id=$1 AND kind='platform' AND section=$2)", userID, key).Scan(&used)
+	err := r.tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM catalog WHERE user_id=$1 AND kind='platform' AND section=$2) OR EXISTS(SELECT 1 FROM tasks WHERE user_id=$1 AND section=$2)", userID, key).Scan(&used)
 	return used, err
 }
 

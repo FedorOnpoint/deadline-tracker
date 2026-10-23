@@ -55,7 +55,7 @@ func (handler *Service) Check(ctx context.Context, id int64) error {
 	var n Notification
 	var completed bool
 	// Every writer locks the same task row. Checks and deadline/completion edits are serialized.
-	err = tx.QueryRow(ctx, `SELECT t.id,t.cycle,t.data->>'topic',p.name,t.deadline,coalesce(s.name,'Не задан'),t.completed FROM tasks t JOIN catalog p ON p.id=t.platform_id LEFT JOIN catalog s ON s.id=t.status_id WHERE t.id=$1 FOR UPDATE OF t`, id).Scan(&n.TaskID, &n.Cycle, &n.Topic, &n.Platform, &n.Deadline, &n.Status, &completed)
+	err = tx.QueryRow(ctx, `SELECT t.id,t.cycle,t.data->>'topic',coalesce(p.name,''),t.deadline,coalesce(s.name,'Не задан'),t.completed FROM tasks t LEFT JOIN catalog p ON p.id=t.platform_id LEFT JOIN catalog s ON s.id=t.status_id WHERE t.id=$1 FOR UPDATE OF t`, id).Scan(&n.TaskID, &n.Cycle, &n.Topic, &n.Platform, &n.Deadline, &n.Status, &completed)
 	if err != nil {
 		return err
 	}

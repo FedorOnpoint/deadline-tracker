@@ -50,6 +50,11 @@ export default function TasksPage({ account }: { account: ReactNode }) {
   const [sort, setSort] = useState('deadline-asc');
   const [grouped, setGrouped] = useState(false);
   const [form, setForm] = useState<Task | 'new' | null>(null);
+  const [newPlatformID, setNewPlatformID] = useState(0);
+  function newRecord(platformID = 0) {
+    setNewPlatformID(platformID);
+    setForm('new');
+  }
   const [manage, setManage] = useState<CatalogKind | null>(null);
   const [manageSections, setManageSections] = useState(false);
   const [buildCard, setBuildCard] = useState(false);
@@ -63,9 +68,8 @@ export default function TasksPage({ account }: { account: ReactNode }) {
     [catalog, section],
   );
   const sectionTasks = useMemo(() => {
-    const platformIDs = new Set(sectionPlatforms.map((item) => item.id));
-    return tasks.filter((task) => platformIDs.has(task.platform_id));
-  }, [tasks, sectionPlatforms]);
+    return tasks.filter((task) => task.section === section);
+  }, [tasks, section]);
   const hasActivePlatform = sectionPlatforms.some((platform) => !platform.archived);
   const visible = useMemo(
     () => selectTasks(sectionTasks, filters, sort, now),
@@ -91,7 +95,7 @@ export default function TasksPage({ account }: { account: ReactNode }) {
               disabled={loading || !sections.length}
               onClick={() => setManage('status')}
             >
-              <span aria-hidden="true">⚙</span> Справочники
+              <span aria-hidden="true">⚙</span> Статусы и справочники
             </button>
             {account}
           </div>
@@ -110,19 +114,14 @@ export default function TasksPage({ account }: { account: ReactNode }) {
           </div>
           <button
             className="primary add-button"
-            disabled={loading || !sectionDefinition || !hasActivePlatform}
-            onClick={() => setForm('new')}
+            disabled={loading || !sectionDefinition}
+            onClick={() => newRecord()}
           >
             <span aria-hidden="true">＋</span> Новая запись
           </button>
         </div>
         <nav className="section-tabs" aria-label="Разделы задач">
           {sections.map((taskSection) => {
-            const ids = new Set(
-              catalog
-                .filter((item) => item.kind === 'platform' && item.section === taskSection.key)
-                .map((item) => item.id),
-            );
             return (
               <button
                 key={taskSection.key}
@@ -132,7 +131,7 @@ export default function TasksPage({ account }: { account: ReactNode }) {
               >
                 {taskSection.label}
                 <span className="count">
-                  {tasks.filter((task) => ids.has(task.platform_id)).length}
+                  {tasks.filter((task) => task.section === taskSection.key).length}
                 </span>
               </button>
             );
@@ -218,7 +217,7 @@ export default function TasksPage({ account }: { account: ReactNode }) {
           <div className="empty" role="status">
             Загружаем редакционный план…
           </div>
-        ) : !visible.length ? (
+        ) : !visible.length && !grouped ? (
           <div className="empty">
             <span className="empty-symbol" aria-hidden="true">
               ▤
@@ -226,27 +225,16 @@ export default function TasksPage({ account }: { account: ReactNode }) {
             <h3>{sectionTasks.length ? 'Ничего не нашлось' : 'В разделе пока нет записей'}</h3>
             <p>
               {sectionTasks.length && 'Измените запрос или сбросьте фильтры.'}
-              {!sectionTasks.length &&
-                hasActivePlatform &&
-                `Добавьте первую запись в раздел «${sectionLabel}».`}
-              {!sectionTasks.length &&
-                !hasActivePlatform &&
-                `Добавьте площадку в раздел «${sectionLabel}», чтобы создавать записи.`}
+              {!sectionTasks.length && `Добавьте первую карточку в раздел «${sectionLabel}».`}
             </p>
             <div className="empty-actions">
               {sectionTasks.length ? (
                 <button onClick={() => setFilters(emptyFilters)}>Сбросить фильтры</button>
               ) : (
                 <>
-                  {hasActivePlatform ? (
-                    <button className="primary" onClick={() => setForm('new')}>
-                      Новая запись
-                    </button>
-                  ) : (
-                    <button className="primary" onClick={() => setManage('platform')}>
-                      Добавить площадку
-                    </button>
-                  )}
+                  <button className="primary" onClick={() => newRecord()}>
+                    Новая карточка
+                  </button>
                   {!tasks.length && hasActivePlatform && (
                     <button disabled={creatingExamples} onClick={() => void createExamples()}>
                       {creatingExamples ? 'Создание…' : 'Добавить примеры'}
@@ -259,6 +247,10 @@ export default function TasksPage({ account }: { account: ReactNode }) {
         ) : (
           <TaskList
             tasks={visible}
+            platforms={sectionPlatforms.filter(
+              (platform) => !filters.platform || String(platform.id) === filters.platform,
+            )}
+            onCreate={newRecord}
             catalog={catalog}
             fields={sectionDefinition?.fields ?? []}
             grouped={grouped}
@@ -282,13 +274,15 @@ export default function TasksPage({ account }: { account: ReactNode }) {
       </main>
       {form && (
         <TaskForm
-          defaultPlatformID={sectionPlatforms.find((item) => !item.archived)?.id || 0}
+          defaultSection={section}
+          defaultPlatformID={newPlatformID}
           task={form === 'new' ? null : form}
           catalog={catalog}
           sections={sections}
           onClose={() => setForm(null)}
           onSave={(input) => (form === 'new' ? createTask(input) : updateTask(form.id, input))}
           saving={saving}
+          onTemplateSaved={refresh}
         />
       )}
       {manage && (

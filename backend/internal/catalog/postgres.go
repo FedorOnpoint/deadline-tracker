@@ -22,7 +22,7 @@ type PostgresReferences struct {
 
 func (reader PostgresReferences) FindReference(ctx context.Context, userID, id int64) (*domain.Catalog, error) {
 	item := &domain.Catalog{ID: id}
-	err := reader.DB.QueryRow(ctx, "SELECT kind,archived FROM catalog WHERE id=$1 AND user_id=$2 FOR SHARE", id, userID).Scan(&item.Kind, &item.Archived)
+	err := reader.DB.QueryRow(ctx, "SELECT kind,archived,section,platform_ids FROM catalog WHERE id=$1 AND user_id=$2 FOR SHARE", id, userID).Scan(&item.Kind, &item.Archived, &item.Section, &item.PlatformIDs)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	}
@@ -30,7 +30,7 @@ func (reader PostgresReferences) FindReference(ctx context.Context, userID, id i
 }
 
 func (repo *PostgresRepository) List(ctx context.Context, userID int64) ([]domain.Catalog, error) {
-	rows, err := repo.DB.Query(ctx, "SELECT id,kind,name,color,position,archived,section FROM catalog WHERE user_id=$1 ORDER BY kind,position,id", userID)
+	rows, err := repo.DB.Query(ctx, "SELECT id,kind,name,color,position,archived,section,platform_ids,reminder_text FROM catalog WHERE user_id=$1 ORDER BY kind,position,id", userID)
 	if err != nil {
 		return nil, err
 	}
@@ -38,7 +38,7 @@ func (repo *PostgresRepository) List(ctx context.Context, userID int64) ([]domai
 	items := []domain.Catalog{}
 	for rows.Next() {
 		var item domain.Catalog
-		if err := rows.Scan(&item.ID, &item.Kind, &item.Name, &item.Color, &item.Position, &item.Archived, &item.Section); err != nil {
+		if err := rows.Scan(&item.ID, &item.Kind, &item.Name, &item.Color, &item.Position, &item.Archived, &item.Section, &item.PlatformIDs, &item.ReminderText); err != nil {
 			return nil, err
 		}
 		items = append(items, item)
@@ -58,7 +58,11 @@ func (repo *PostgresRepository) Transaction(ctx context.Context, run func(Transa
 
 func (repo *postgresTransaction) Lock(ctx context.Context, userID, id int64) (domain.Catalog, error) {
 	item := domain.Catalog{ID: id}
-	err := repo.tx.QueryRow(ctx, "SELECT kind,position,section FROM catalog WHERE id=$1 AND user_id=$2 FOR UPDATE", id, userID).Scan(&item.Kind, &item.Position, &item.Section)
+	// Task saves lock the task before its catalog references. Use the same order when moving a platform.
+	if _, err := repo.tx.Exec(ctx, "SELECT id FROM tasks WHERE user_id=$1 AND platform_id=$2 ORDER BY id FOR UPDATE", userID, id); err != nil {
+		return item, err
+	}
+	err := repo.tx.QueryRow(ctx, "SELECT kind,position,section,platform_ids FROM catalog WHERE id=$1 AND user_id=$2 FOR UPDATE", id, userID).Scan(&item.Kind, &item.Position, &item.Section, &item.PlatformIDs)
 	return item, err
 }
 
@@ -76,7 +80,7 @@ func (repo *postgresTransaction) NextPosition(ctx context.Context, userID int64,
 
 func (repo *postgresTransaction) Insert(ctx context.Context, userID int64, item domain.Catalog) (int64, error) {
 	var id int64
-	err := repo.tx.QueryRow(ctx, "INSERT INTO catalog(kind,name,color,position,archived,section,user_id) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING id", item.Kind, item.Name, item.Color, item.Position, item.Archived, item.Section, userID).Scan(&id)
+	err := repo.tx.QueryRow(ctx, "INSERT INTO catalog(kind,name,color,position,archived,section,user_id,platform_ids,reminder_text) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id", item.Kind, item.Name, item.Color, item.Position, item.Archived, item.Section, userID, item.PlatformIDs, item.ReminderText).Scan(&id)
 	return id, err
 }
 
@@ -91,6 +95,13 @@ func (repo *postgresTransaction) Move(ctx context.Context, userID int64, item do
 }
 
 func (repo *postgresTransaction) Update(ctx context.Context, userID int64, item domain.Catalog) error {
-	_, err := repo.tx.Exec(ctx, "UPDATE catalog SET name=$2,color=$3,position=$4,archived=$5,section=$6 WHERE id=$1 AND user_id=$7", item.ID, item.Name, item.Color, item.Position, item.Archived, item.Section, userID)
+	_, err := repo.tx.Exec(ctx, "UPDATE catalog SET name=$2,color=$3,position=$4,archived=$5,section=$6,platform_ids=$8,reminder_text=$9 WHERE id=$1 AND user_id=$7", item.ID, item.Name, item.Color, item.Position, item.Archived, item.Section, userID, item.PlatformIDs, item.ReminderText)
+	if err == nil && item.Kind == "platform" {
+		_, err = repo.tx.Exec(ctx, "UPDATE tasks SET section=$3 WHERE user_id=$1 AND platform_id=$2 AND section<>$3", userID, item.ID, item.Section)
+	}
 	return err
+}
+
+func (repo *postgresTransaction) FindReference(ctx context.Context, userID, id int64) (*domain.Catalog, error) {
+	return (PostgresReferences{DB: repo.tx}).FindReference(ctx, userID, id)
 }

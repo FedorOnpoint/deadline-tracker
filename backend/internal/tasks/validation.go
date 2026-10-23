@@ -18,8 +18,8 @@ func validateTask(task *domain.Task) error {
 			return domain.Invalid("В каждом текстовом поле допускается не более 20000 символов")
 		}
 	}
-	if task.PlatformID <= 0 {
-		return domain.Invalid("Выберите площадку")
+	if task.PlatformID < 0 || task.Section == "" || len(task.Section) > 100 {
+		return domain.Invalid("Выберите раздел карточки")
 	}
 	if task.Deadline.IsZero() || task.Deadline.Year() < 1900 || task.Deadline.Year() > 9999 {
 		return domain.Invalid("Укажите корректный дедлайн (1900–9999)")
@@ -40,7 +40,13 @@ func validateRequiredFields(task domain.Task, fields []domain.CardField) error {
 		if !field.Required {
 			continue
 		}
+		if field.ID == "sms" && !task.SMS {
+			return domain.Invalid("Установите флажок «" + field.Label + "»")
+		}
 		value, exists := values[field.ID]
+		if (field.ID == "platform_id" && task.PlatformID == 0) || (field.ID == "status_id" && task.StatusID == nil) {
+			return domain.Invalid("Заполните поле «" + field.Label + "»")
+		}
 		if (exists && strings.TrimSpace(value) == "") || (field.ID == "specialty_id" && task.SpecialtyID == nil) {
 			return domain.Invalid("Заполните поле «" + field.Label + "»")
 		}

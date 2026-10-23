@@ -1,7 +1,10 @@
+import { useState } from 'react';
+import { CardCanvas, type CanvasEditor } from '../card-builder/CardCanvas';
+import { FieldIcon } from '../card-builder/FieldIcon';
 import { WorkStatusBadge } from '../catalog/WorkStatusBadge';
 import { type CardField, type Catalog, type Task } from '../../shared/types';
-import { formatDate, localDateTime, remaining, timezone, urgency, urgencyLabels } from './model';
-import { displayFieldValue } from '../card-builder/fields';
+import { formatDate, remaining, timezone, urgency, urgencyLabels } from './model';
+import { displayFieldValue, fieldValue, fieldDeadline } from '../card-builder/fields';
 
 function Field({ label, value }: { label: string; value: string }) {
   return (
@@ -11,6 +14,7 @@ function Field({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
+
 export function TaskCard({
   task,
   catalog,
@@ -21,6 +25,7 @@ export function TaskCard({
   onEdit,
   onDelete,
   onPatch,
+  canvasEditor,
 }: {
   task: Task;
   catalog: Catalog[];
@@ -31,151 +36,192 @@ export function TaskCard({
   onEdit: () => void;
   onDelete: () => void;
   onPatch: (data: Partial<Pick<Task, 'completed' | 'status_id'>>) => Promise<void>;
+  canvasEditor?: CanvasEditor;
 }) {
-  const findCatalogItem = (id: number | null) => catalog.find((item) => item.id === id);
-  const status = findCatalogItem(task.status_id);
-  const level = urgency(task, now);
+  const [expanded, setExpanded] = useState(false);
+  const open = preview || expanded;
+  const status = catalog.find((entry) => entry.id === task.status_id);
   const topicID = `topic-${preview ? 'preview-' : ''}${task.id}`;
-  const warning = task.email_date && task.email_date < localDateTime(task.deadline).slice(0, 10);
+  const detailsID = `details-${preview ? 'preview-' : ''}${task.id}`;
+  const source = task.deadline_field || 'deadline';
+  const sourceField = fields.find((field) => field.id === source);
+  const hasDate = sourceField && Boolean(fieldValue(task, sourceField));
+  const level = hasDate ? urgency(task, now) : 'neutral';
+  const hasStatus = fields.some(
+    (field) => field.id === 'status_id' && field.visibility !== 'hidden',
+  );
+  function fieldContent(field: CardField) {
+    if (field.id === 'topic')
+      return (
+        <h3 className="card-title" id={topicID}>
+          <FieldIcon field={field} />
+          <span>{task.topic || 'Название карточки'}</span>
+        </h3>
+      );
+    if (field.id === 'status_id')
+      return (
+        <dl className="field status-field">
+          <dt className="field-label">
+            <FieldIcon field={field} />
+            <span>{field.label}</span>
+          </dt>
+          <dd>
+            {preview ? (
+              <WorkStatusBadge status={status} />
+            ) : (
+              <WorkStatusBadge
+                status={status}
+                selection={{
+                  statuses: catalog.filter(
+                    (entry) =>
+                      entry.kind === 'status' && (!entry.archived || entry.id === task.status_id),
+                  ),
+                  disabled: busy,
+                  label: `Статус записи ${task.id}`,
+                  onChange: (status_id) => void onPatch({ status_id }),
+                }}
+              />
+            )}
+          </dd>
+        </dl>
+      );
+    const value = displayFieldValue(task, field, catalog);
+    const date =
+      (field.type === 'date' || field.type === 'datetime') && value
+        ? fieldDeadline(task, field)
+        : '';
+    const dated = { deadline: date, completed: task.completed };
+    const dateLevel = date ? urgency(dated, now) : 'neutral';
+    return (
+      <dl className={`field ${field.id === source ? 'deadline' : ''}`}>
+        <dt className="field-label">
+          <FieldIcon field={field} />
+          <span>
+            {field.label}
+            {field.id === source && <span className="deadline-marker"> · главная</span>}
+          </span>
+        </dt>
+        <dd className={!value ? 'muted' : ''}>
+          {value || 'Не указано'}
+          {date && (
+            <span className={`time-left ${dateLevel}`}>
+              {remaining(dated, now, field.type === 'date' || field.id === 'deadline')}
+            </span>
+          )}
+        </dd>
+      </dl>
+    );
+  }
   return (
     <article className={`task-card ${level}`} aria-labelledby={topicID} aria-busy={busy}>
-      <details className="card-disclosure">
-        <summary className="card-summary">
+      <div className="card-disclosure" data-expanded={open}>
+        <div
+          className="card-summary"
+          onClick={(event) => {
+            if (preview) return;
+            if (event.target instanceof Element && event.target.closest('select, button')) return;
+            setExpanded((previous) => !previous);
+          }}
+        >
           <div className="card-top">
             <div className="card-kicker">
-              <span>{findCatalogItem(task.platform_id)?.name || 'Не указано'}</span>
-              <span className="record-id">#{task.id}</span>
+              <span className="record-id">{task.id ? `#${task.id}` : 'Новая карточка'}</span>
             </div>
             <div className="card-badges">
-              <span className={`urgency ${level}`}>
-                <span aria-hidden="true">●</span>
-                {urgencyLabels[level]}
-              </span>
-              <WorkStatusBadge status={status} compact />
+              {hasDate && (
+                <span className={`urgency ${level}`}>
+                  <span aria-hidden="true">●</span>
+                  {urgencyLabels[level]}
+                </span>
+              )}
+              <button
+                type="button"
+                className="disclosure-hint"
+                aria-expanded={open}
+                aria-controls={detailsID}
+                tabIndex={preview ? -1 : undefined}
+                onClick={() => !preview && setExpanded((previous) => !previous)}
+              >
+                <span className="when-closed">Подробнее</span>
+                <span className="when-open">Свернуть</span>
+                <span aria-hidden="true">⌄</span>
+              </button>
             </div>
           </div>
-          <h3 id={topicID}>{task.topic}</h3>
-          <div className="summary-meta">
-            <dl className="summary-dates configurable-summary">
-              {fields
-                .filter(
-                  (field) =>
-                    field.visibility === 'summary' &&
-                    field.id !== 'topic' &&
-                    field.id !== 'platform_id',
-                )
-                .map((field) => (
-                  <Field
-                    key={field.id}
-                    label={field.label}
-                    value={displayFieldValue(task, field, catalog)}
-                  />
-                ))}
-            </dl>
-            <span className="disclosure-hint">
-              <span className="when-closed">Подробнее</span>
-              <span className="when-open">Свернуть</span>
-              <svg
-                className="disclosure-arrow"
-                viewBox="0 0 20 20"
-                width="18"
-                height="18"
-                fill="none"
-                aria-hidden="true"
-              >
-                <path
-                  d="m5 7.5 5 5 5-5"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </span>
-          </div>
-        </summary>
-        <div className="card-details">
-          <dl className="card-field-grid">
-            {fields
-              .filter((field) => field.visibility === 'details' || field.id === 'deadline')
-              .map((field) =>
-                field.id === 'deadline' ? (
-                  <div key={field.id} className="field deadline">
-                    <dt>{field.label}</dt>
-                    <dd>
-                      {formatDate(task.deadline, true)}
-                      <span className={`time-left ${level}`}>{remaining(task, now)}</span>
-                      <small className="muted">{timezone}</small>
-                    </dd>
-                  </div>
-                ) : (
-                  <Field
-                    key={field.id}
-                    label={field.label}
-                    value={displayFieldValue(task, field, catalog)}
-                  />
-                ),
-              )}
-          </dl>
-          {warning && <p className="warning">Дата e-mail раньше срока загрузки</p>}
-          {!preview && (
-            <div className="card-controls">
-              <label className="status-control">
-                Рабочий статус
-                <WorkStatusBadge status={status} />
-                <select
-                  className="status-select"
+          <CardCanvas
+            fields={fields}
+            visibility="summary"
+            renderField={fieldContent}
+            editor={canvasEditor}
+          />
+        </div>
+        <div className="card-details" id={detailsID} aria-hidden={!open} inert={!open || undefined}>
+          <div className="card-details-content">
+            <CardCanvas
+              fields={fields}
+              visibility="details"
+              renderField={fieldContent}
+              editor={canvasEditor}
+            />
+            {hasStatus && status?.reminder_text && (
+              <div className="status-reminder">
+                <strong>Напоминание · {status.name}</strong>
+                <p>{status.reminder_text}</p>
+              </div>
+            )}
+            <div className="card-footer">
+              <div className="card-metadata">
+                <dl className="timestamps">
+                  <Field label="Создано" value={formatDate(task.created_at, true)} />
+                  <Field label="Изменено" value={formatDate(task.updated_at, true)} />
+                  {task.completed_at && (
+                    <Field label="Выполнено" value={formatDate(task.completed_at, true)} />
+                  )}
+                </dl>
+                <small className="muted">Часовой пояс: {timezone}</small>
+              </div>
+              <div className="card-buttons" inert={preview || undefined}>
+                <button
+                  type="button"
+                  className={`completion-button ${task.completed ? 'is-completed' : ''}`}
+                  aria-pressed={task.completed}
+                  aria-label={task.completed ? 'Отметить невыполненным' : 'Выполнить'}
+                  title={task.completed ? 'Отметить невыполненным' : 'Выполнить'}
                   disabled={busy}
-                  value={task.status_id ?? ''}
-                  onChange={(e) =>
-                    void onPatch({ status_id: e.target.value ? Number(e.target.value) : null })
-                  }
-                  aria-label={`Статус записи ${task.id}`}
+                  onClick={() => !preview && void onPatch({ completed: !task.completed })}
                 >
-                  <option value="">Не задан</option>
-                  {catalog
-                    .filter(
-                      (item) =>
-                        item.kind === 'status' && (!item.archived || item.id === task.status_id),
-                    )
-                    .map((item) => (
-                      <option key={item.id} value={item.id}>
-                        {item.name}
-                        {item.archived ? ' (в архиве)' : ''}
-                      </option>
-                    ))}
-                </select>
-              </label>
-              <label className="check">
-                <input
-                  type="checkbox"
-                  checked={task.completed}
-                  disabled={busy}
-                  onChange={(e) => void onPatch({ completed: e.target.checked })}
-                />
-                Выполнено
-              </label>
-              <div className="card-buttons">
-                <button disabled={busy} onClick={onEdit}>
-                  Редактировать
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="m5 12 4 4L19 6" />
+                  </svg>
                 </button>
-                <button className="danger-subtle" disabled={busy} onClick={onDelete}>
-                  Удалить
+                <button
+                  type="button"
+                  aria-label="Редактировать"
+                  title="Редактировать"
+                  disabled={busy}
+                  onClick={preview ? undefined : onEdit}
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="m15 5 4 4M4 15 16 3a2.8 2.8 0 0 1 4 4L8 19l-5 2 1-6Z" />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  className="danger-subtle"
+                  aria-label="Удалить"
+                  title="Удалить"
+                  disabled={busy}
+                  onClick={preview ? undefined : onDelete}
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7" />
+                  </svg>
                 </button>
               </div>
             </div>
-          )}
-          {!preview && (
-            <dl className="timestamps">
-              <Field label="Создано" value={formatDate(task.created_at, true)} />
-              <Field label="Изменено" value={formatDate(task.updated_at, true)} />
-              {task.completed_at && (
-                <Field label="Выполнено" value={formatDate(task.completed_at, true)} />
-              )}
-            </dl>
-          )}
+          </div>
         </div>
-      </details>
+      </div>
     </article>
   );
 }

@@ -1,17 +1,20 @@
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useId, useRef, type ReactNode } from 'react';
 
 export function Modal({
   title,
   onClose,
   children,
   wide = false,
+  layout,
 }: {
   title: string;
   onClose: () => void;
   children: ReactNode;
   wide?: boolean;
+  layout?: 'builder';
 }) {
   const ref = useRef<HTMLDialogElement>(null);
+  const titleID = useId();
   const startedOnBackdrop = useRef(false);
   function outsideDialog(x: number, y: number) {
     const bounds = ref.current!.getBoundingClientRect();
@@ -24,19 +27,24 @@ export function Modal({
     dialog.querySelector<HTMLElement>('[data-autofocus]')?.focus();
     return () => {
       dialog.close();
-      previous?.focus();
+      // Restore focus after any nested dialogs have also finished unmounting.
+      queueMicrotask(() => {
+        if (previous?.isConnected) previous.focus({ preventScroll: true });
+      });
     };
   }, []);
   return (
     <dialog
       ref={ref}
-      className={wide ? 'modal wide' : 'modal'}
-      aria-labelledby="modal-title"
+      className={`modal${wide ? ' wide' : ''}${layout === 'builder' ? ' builder-modal' : ''}`}
+      aria-labelledby={titleID}
       onCancel={(e) => {
         e.preventDefault();
+        e.stopPropagation();
         onClose();
       }}
       onPointerDown={(e) => {
+        e.stopPropagation();
         startedOnBackdrop.current =
           e.target === e.currentTarget && outsideDialog(e.clientX, e.clientY);
       }}
@@ -44,6 +52,7 @@ export function Modal({
         startedOnBackdrop.current = false;
       }}
       onClick={(e) => {
+        e.stopPropagation();
         const close =
           startedOnBackdrop.current &&
           e.target === e.currentTarget &&
@@ -53,7 +62,7 @@ export function Modal({
       }}
     >
       <div className="modal-heading">
-        <h2 id="modal-title">{title}</h2>
+        <h2 id={titleID}>{title}</h2>
         <button type="button" className="icon-button" aria-label="Закрыть окно" onClick={onClose}>
           ×
         </button>

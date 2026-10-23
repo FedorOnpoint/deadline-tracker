@@ -1,6 +1,6 @@
 .topbar {
-  border-bottom: 1px solid #2c3239;
-  background: #191d21;
+  border-bottom: 1px solid var(--subtle-border, #2c3239);
+  background: var(--header-bg, #191d21);
 }
 .topbar-inner {
   max-width: 1280px;
@@ -26,7 +26,7 @@
   flex-shrink: 0;
 }
 .brand-caption {
-  border-left: 1px solid #424951;
+  border-left: 1px solid var(--subtle-border, #424951);
   padding-left: 18px;
   margin-left: 12px;
   font-size: 13px;

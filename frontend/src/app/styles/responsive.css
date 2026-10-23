@@ -28,10 +28,6 @@
     justify-content: flex-end;
     gap: 10px;
   }
-  .card-controls {
-    flex-wrap: wrap;
-    gap: 15px;
-  }
 }
 @media (max-width: 600px) {
   .topbar-inner {
@@ -105,8 +101,7 @@
   }
   input,
   textarea,
-  select,
-  .status-select {
+  select {
     font-size: 16px;
   }
   .search input {
@@ -134,7 +129,7 @@
     font-size: 14px;
   }
   .task-card {
-    padding: 18px 16px;
+    padding: 10px 16px 16px;
   }
   .card-top {
     align-items: flex-start;
@@ -170,17 +165,14 @@
     grid-template-columns: 1fr;
     gap: 16px;
   }
-  .card-controls {
-    flex-direction: column;
+  .card-footer {
     align-items: flex-start;
-    gap: 18px;
   }
-  .status-control {
+  .card-footer .card-buttons {
     width: 100%;
   }
-  .card-buttons {
-    margin-left: 0;
-    flex-wrap: wrap;
+  .card-buttons button {
+    min-height: 40px;
   }
   .timestamps {
     flex-direction: column;

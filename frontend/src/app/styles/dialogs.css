@@ -57,7 +57,7 @@ fieldset {
 }
 legend {
   font-size: 13px;
-  color: #c7d3dd;
+  color: var(--label-text, #c7d3dd);
   padding: 0 7px;
 }
 .hint {
@@ -146,7 +146,7 @@ input[type='color'] {
   border-radius: 6px;
 }
 .catalog-item.archived {
-  background: #181d22;
+  background: var(--control-bg, #181d22);
 }
 .catalog-actions {
   display: flex;
@@ -170,9 +170,18 @@ input[type='color'] {
   left: 16px;
   padding: 12px 20px;
   background: var(--accent);
-  color: #14231c;
+  color: var(--primary-text, #14231c);
   z-index: 100;
 }
 .skip-link:focus {
   top: 12px;
+}
+
+.audience-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+}
+.catalog-form .catalog-extra {
+  flex-basis: 100%;
 }

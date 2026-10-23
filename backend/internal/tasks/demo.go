@@ -63,6 +63,18 @@ func (service *Service) CreateExamples(ctx context.Context, userID int64) (bool,
 				Comment:    "Демонстрационная запись. Даты заданы относительно момента создания примеров.",
 				Owner:      "Анна",
 			}
+			platform, err := tx.FindReference(ctx, userID, task.PlatformID)
+			if err != nil {
+				return err
+			}
+			task.Section = platform.Section
+			template, err := tx.CardFields(ctx, userID, task.Section)
+			if err != nil {
+				return err
+			}
+			if err := prepareCard(&task, domain.Task{}, template, false); err != nil {
+				return err
+			}
 			if _, err := tx.Insert(ctx, userID, task); err != nil {
 				return err
 			}

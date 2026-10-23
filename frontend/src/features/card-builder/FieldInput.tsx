@@ -1,4 +1,5 @@
 import type { CardField } from '../../shared/types';
+import { dateTimeInput } from './fields';
 
 export function FieldInput({
   field,
@@ -67,14 +68,17 @@ export function FieldInput({
         />
       ) : (
         <input
-          type={field.type}
+          type={field.type === 'datetime' ? 'datetime-local' : field.type}
           required={field.required}
           maxLength={20000}
           step={field.type === 'number' ? 'any' : undefined}
           min={field.type === 'date' ? '1900-01-01' : undefined}
           max={field.type === 'date' ? '9999-12-31' : undefined}
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
+          value={field.type === 'datetime' ? dateTimeInput(value) : value}
+          onChange={(event) => {
+            const next = event.target.value;
+            onChange(field.type === 'datetime' && next ? new Date(next).toISOString() : next);
+          }}
         />
       )}
     </label>

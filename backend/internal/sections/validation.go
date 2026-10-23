@@ -14,11 +14,11 @@ import (
 var customID = regexp.MustCompile(`^custom_[a-zA-Z0-9_-]{1,80}$`)
 
 func ValidateFields(fields, previous []domain.CardField) error {
-	if len(fields) < len(domain.DefaultCardFields()) || len(fields) > 60 {
-		return domain.Invalid("В шаблоне должно быть от 10 до 60 полей")
+	if len(fields) < 2 || len(fields) > 60 {
+		return domain.Invalid("Допускается от 2 до 60 полей")
 	}
 	builtins := map[string]domain.CardField{}
-	for _, field := range domain.DefaultCardFields() {
+	for _, field := range domain.BuiltinCardFields() {
 		builtins[field.ID] = field
 	}
 	seen := map[string]domain.CardField{}
@@ -41,15 +41,15 @@ func ValidateFields(fields, previous []domain.CardField) error {
 			if field.Type != builtin.Type || (builtin.Required && !field.Required) {
 				return domain.Invalid("Нельзя менять тип и обязательность основных полей")
 			}
-			if (field.ID == "topic" || field.ID == "platform_id") && field.Visibility != "summary" {
-				return domain.Invalid("Тема и площадка должны быть видны в свёрнутой карточке")
+			if field.ID == "topic" && field.Visibility != "summary" {
+				return domain.Invalid("Название должно быть видно в свёрнутой карточке")
 			}
 		} else {
 			if !customID.MatchString(field.ID) {
 				return domain.Invalid("Некорректный идентификатор поля")
 			}
 			switch field.Type {
-			case "text", "textarea", "number", "date", "select", "checkbox":
+			case "text", "textarea", "number", "date", "datetime", "select", "checkbox":
 			default:
 				return domain.Invalid("Неизвестный тип поля")
 			}
@@ -75,18 +75,43 @@ func ValidateFields(fields, previous []domain.CardField) error {
 		}
 		seen[field.ID] = *field
 	}
-	for id := range builtins {
-		if _, ok := seen[id]; !ok {
-			return domain.Invalid("Основные поля нельзя удалять; ненужные поля можно скрыть")
+	for id, builtin := range builtins {
+		if _, ok := seen[id]; builtin.Required && !ok {
+			return domain.Invalid("Название и дату нельзя удалять")
 		}
 	}
 	for _, old := range previous {
 		field, ok := seen[old.ID]
 		if !ok {
-			return domain.Invalid("Существующее поле нельзя удалить; скройте его, чтобы сохранить данные")
+			continue
 		}
 		if field.Type != old.Type {
 			return domain.Invalid("Тип сохранённого поля нельзя менять; добавьте новое поле")
+		}
+	}
+	return validateLayouts(fields)
+}
+
+func validateLayouts(fields []domain.CardField) error {
+	for index, field := range fields {
+		box := field.Layout
+		if box == nil {
+			continue
+		}
+		if box.X < 0 || box.Y < 0 || box.Width < 3 || box.Width > 12 || box.Height < 2 || box.Height > 24 || box.X > 12-box.Width || box.Y > 4096-box.Height {
+			return domain.Invalid("Некорректные размеры или положение блока «" + field.Label + "»")
+		}
+		if field.Visibility == "hidden" {
+			continue
+		}
+		for _, other := range fields[:index] {
+			previous := other.Layout
+			if previous == nil || field.Visibility != other.Visibility {
+				continue
+			}
+			if box.X < previous.X+previous.Width && previous.X < box.X+box.Width && box.Y < previous.Y+previous.Height && previous.Y < box.Y+box.Height {
+				return domain.Invalid("Блоки «" + field.Label + "» и «" + other.Label + "» перекрываются")
+			}
 		}
 	}
 	return nil
@@ -121,6 +146,9 @@ func ValidateValues(fields []domain.CardField, values, previous map[string]strin
 		case "date":
 			d, err := time.Parse("2006-01-02", value)
 			valid = err == nil && d.Year() >= 1900
+		case "datetime":
+			d, err := time.Parse(time.RFC3339, value)
+			valid = err == nil && d.Year() >= 1900
 		case "checkbox":
 			valid = value == "true" || value == "false"
 		case "select":
@@ -142,4 +170,16 @@ func ValidateValues(fields []domain.CardField, values, previous map[string]strin
 		}
 	}
 	return nil
+}
+
+func ValidateDeadlineField(fields []domain.CardField, id string) error {
+	if id == "" {
+		id = "deadline"
+	}
+	for _, field := range fields {
+		if field.ID == id && (field.Type == "date" || field.Type == "datetime") && field.Visibility != "hidden" {
+			return nil
+		}
+	}
+	return domain.Invalid("Выберите видимое поле с датой для отсчёта дедлайна")
 }

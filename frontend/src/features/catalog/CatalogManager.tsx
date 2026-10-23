@@ -34,6 +34,8 @@ export function CatalogManager({
   const [name, setName] = useState('');
   const [color, setColor] = useState('#aac4d6');
   const [section, setSection] = useState<TaskSection>(defaultSection);
+  const [platformIDs, setPlatformIDs] = useState<number[]>([]);
+  const [reminderText, setReminderText] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const items = catalog.filter((item) => item.kind === kind);
@@ -59,11 +61,22 @@ export function CatalogManager({
   }
   async function submit(e: FormEvent) {
     e.preventDefault();
-    if (await save({ ...editing, name: name.trim(), color, section })) {
+    if (
+      await save({
+        ...editing,
+        name: name.trim(),
+        color,
+        section,
+        platform_ids: kind === 'specialty' ? platformIDs : [],
+        reminder_text: kind === 'status' ? reminderText : '',
+      })
+    ) {
       setEditing(null);
       setName('');
       setColor('#aac4d6');
       setSection(defaultSection);
+      setPlatformIDs([]);
+      setReminderText('');
     }
   }
   function edit(item: Catalog) {
@@ -71,6 +84,8 @@ export function CatalogManager({
     setName(item.name);
     setColor(item.color);
     setSection(item.section);
+    setPlatformIDs(item.platform_ids ?? []);
+    setReminderText(item.reminder_text ?? '');
   }
   return (
     <Modal
@@ -95,6 +110,8 @@ export function CatalogManager({
               setEditing(null);
               setName('');
               setSection(defaultSection);
+              setPlatformIDs([]);
+              setReminderText('');
               setError('');
             }}
           >
@@ -131,6 +148,50 @@ export function CatalogManager({
             </select>
           </label>
         )}
+        {kind === 'specialty' && (
+          <fieldset className="catalog-extra">
+            <legend>Площадки аудитории</legend>
+            <p className="hint">Аудитория доступна только на отмеченных площадках.</p>
+            <div className="audience-options">
+              {catalog
+                .filter(
+                  (entry) =>
+                    entry.kind === 'platform' &&
+                    (!entry.archived || platformIDs.includes(entry.id)),
+                )
+                .map((entry) => (
+                  <label className="check" key={entry.id}>
+                    <input
+                      type="checkbox"
+                      checked={platformIDs.includes(entry.id)}
+                      onChange={(event) =>
+                        setPlatformIDs(
+                          event.target.checked
+                            ? [...platformIDs, entry.id]
+                            : platformIDs.filter((id) => id !== entry.id),
+                        )
+                      }
+                    />
+                    {entry.name}
+                    {entry.archived ? ' (архив)' : ''}
+                  </label>
+                ))}
+            </div>
+          </fieldset>
+        )}
+        {kind === 'status' && (
+          <label className="catalog-extra">
+            Текст напоминания
+            <textarea
+              rows={3}
+              maxLength={2000}
+              value={reminderText}
+              onChange={(event) => setReminderText(event.target.value)}
+              placeholder="Например: согласуйте материал с редактором"
+            />
+            <small>Показывается в подробностях карточки с этим статусом.</small>
+          </label>
+        )}
         <button className="primary" disabled={busy || !name.trim()}>
           {editing ? 'Сохранить' : 'Добавить'}
         </button>
@@ -141,6 +202,10 @@ export function CatalogManager({
             onClick={() => {
               setEditing(null);
               setName('');
+              setColor('#aac4d6');
+              setSection(defaultSection);
+              setPlatformIDs([]);
+              setReminderText('');
             }}
           >
             Отмена
@@ -164,6 +229,15 @@ export function CatalogManager({
                   {sections.find((taskSection) => taskSection.key === item.section)?.label}
                 </small>
               )}
+              {kind === 'specialty' && (
+                <small>
+                  {(item.platform_ids ?? [])
+                    .map((id) => catalog.find((entry) => entry.id === id)?.name)
+                    .filter(Boolean)
+                    .join(', ') || 'Площадки не выбраны'}
+                </small>
+              )}
+              {kind === 'status' && item.reminder_text && <small>{item.reminder_text}</small>}
               {item.archived && <small>В архиве</small>}
             </span>
             <div className="catalog-actions">

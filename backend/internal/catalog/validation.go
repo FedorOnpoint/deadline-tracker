@@ -12,6 +12,26 @@ var hexColor = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
 
 func validateItem(c *domain.Catalog) error {
 	c.Name = strings.TrimSpace(c.Name)
+	c.ReminderText = strings.TrimSpace(c.ReminderText)
+	if utf8.RuneCountInString(c.ReminderText) > 2000 {
+		return domain.Invalid("Текст напоминания — не более 2000 символов")
+	}
+	if c.Kind != "status" && c.ReminderText != "" {
+		return domain.Invalid("Текст напоминания доступен только статусам")
+	}
+	if len(c.PlatformIDs) > 100 {
+		return domain.Invalid("Выберите не более 100 площадок")
+	}
+	seen := map[int64]bool{}
+	for _, id := range c.PlatformIDs {
+		if id <= 0 || seen[id] || c.Kind != "specialty" {
+			return domain.Invalid("Некорректный список площадок аудитории")
+		}
+		seen[id] = true
+	}
+	if c.PlatformIDs == nil {
+		c.PlatformIDs = []int64{}
+	}
 	if len(c.Section) > 100 {
 		return domain.Invalid("Выберите раздел задач")
 	}

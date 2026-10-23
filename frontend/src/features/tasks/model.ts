@@ -17,9 +17,18 @@ export const urgencyLabels: Record<Urgency, string> = {
   soon: '7–14 дней',
   neutral: 'В запасе',
 };
-export function remaining(task: Task, now: number): string {
+export function remaining(
+  task: Pick<Task, 'deadline' | 'completed'>,
+  now: number,
+  daysOnly = false,
+): string {
   if (task.completed) return 'Работа завершена';
   const delta = new Date(task.deadline).getTime() - now;
+  if (daysOnly) {
+    if (delta <= 0) return `Просрочено на ${Math.max(1, Math.ceil(Math.abs(delta) / DAY))} д.`;
+    const days = Math.ceil(delta / DAY);
+    return `Осталось ${days} д.`;
+  }
   const minutes = Math.max(1, Math.ceil(Math.abs(delta) / 60000));
   let value: string;
   if (minutes < 60) value = `${minutes} мин.`;
@@ -70,24 +79,32 @@ export const emptyFilters: Filters = {
   urgency: '',
 };
 export function selectTasks(tasks: Task[], filters: Filters, sort: string, now: number) {
-  const q = filters.query.trim().toLocaleLowerCase('ru-RU');
+  const keywords = filters.query.trim().toLocaleLowerCase('ru-RU').split(/\s+/).filter(Boolean);
   return tasks
     .filter((t) => {
       if (
-        q &&
-        ![
-          t.topic,
-          t.project,
-          t.header,
-          t.preheader,
-          t.comment,
-          t.owner,
-          ...Object.values(t.custom_fields),
-        ].some((v) => v.toLocaleLowerCase('ru-RU').includes(q))
+        keywords.length &&
+        !keywords.every((keyword) =>
+          [
+            t.topic,
+            t.project,
+            t.header,
+            t.preheader,
+            t.comment,
+            t.owner,
+            ...Object.values(t.custom_fields),
+          ].some((v) => v.toLocaleLowerCase('ru-RU').includes(keyword)),
+        )
       )
         return false;
       if (filters.platform && String(t.platform_id) !== filters.platform) return false;
-      if (filters.specialty && String(t.specialty_id) !== filters.specialty) return false;
+      if (
+        filters.specialty &&
+        !(t.specialty_ids ?? (t.specialty_id ? [t.specialty_id] : [])).includes(
+          Number(filters.specialty),
+        )
+      )
+        return false;
       if (
         filters.status &&
         (filters.status === 'unset' ? t.status_id !== null : String(t.status_id) !== filters.status)

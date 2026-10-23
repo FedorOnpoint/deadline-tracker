@@ -55,5 +55,11 @@ func Initialize(ctx context.Context, db *pgxpool.Pool) error {
 	if err = initializeSections(ctx, tx); err != nil {
 		return err
 	}
+	if err = initializeCards(ctx, tx); err != nil {
+		return err
+	}
+	if err = initializeCatalogSettings(ctx, tx); err != nil {
+		return err
+	}
 	return tx.Commit(ctx)
 }

@@ -7,8 +7,8 @@
     sans-serif;
   font-size: 14px;
   line-height: 1.6;
-  color: #edf0f3;
-  background: #15181c;
+  color: var(--text);
+  background: var(--bg);
   color-scheme: dark;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -65,19 +65,19 @@ button {
     transform 0.18s ease;
 }
 button:hover:not(:disabled) {
-  background: #333a42;
+  background: var(--control-hover, #333a42);
 }
 button:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
 button.primary {
-  color: #13291f;
+  color: var(--primary-text, #13291f);
   background: var(--accent);
   border-color: var(--accent);
 }
 button.primary:hover:not(:disabled) {
-  background: #b1ecd3;
+  background: var(--primary-hover, #b1ecd3);
 }
 button.danger {
   background: #b94143;
@@ -88,7 +88,7 @@ button.danger:hover:not(:disabled) {
   background: #a93436;
 }
 button.danger-subtle {
-  color: #f3a8a5;
+  color: var(--danger-text, #f3a8a5);
   background: transparent;
   border-color: transparent;
 }
@@ -107,7 +107,7 @@ textarea,
 select {
   width: 100%;
   min-width: 0;
-  background: #191e24;
+  background: var(--control-bg, #191e24);
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: var(--radius-control);
@@ -117,7 +117,7 @@ select {
 }
 select {
   cursor: pointer;
-  color-scheme: dark;
+  color-scheme: inherit;
   appearance: none;
   padding-right: 35px;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 20 20' fill='none'%3E%3Cpath d='m5 7.5 5 5 5-5' stroke='%23a3adb8' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
@@ -129,21 +129,21 @@ select {
     box-shadow 0.18s ease;
 }
 select:hover:not(:disabled) {
-  background-color: #232b32;
-  border-color: #586772;
+  background-color: var(--control-hover, #232b32);
+  border-color: var(--border-hover, #586772);
 }
 select:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
-  border-color: #83bba2;
-  box-shadow: 0 0 0 3px #96ddc012;
+  border-color: var(--accent-border, #83bba2);
+  box-shadow: 0 0 0 3px var(--focus-shadow, #96ddc012);
 }
 select:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
 select option {
-  background: #20262d;
+  background: var(--menu-bg, #20262d);
   color: var(--text);
 }
 @supports (appearance: base-select) {
@@ -161,9 +161,9 @@ select option {
     text-align: left;
   }
   select:open {
-    border-color: #83bba2;
-    background-color: #232c31;
-    box-shadow: 0 0 0 3px #96ddc010;
+    border-color: var(--accent-border, #83bba2);
+    background-color: var(--accent-bg, #232c31);
+    box-shadow: 0 0 0 3px var(--focus-shadow, #96ddc010);
   }
   select::picker-icon {
     color: var(--muted);
@@ -179,8 +179,8 @@ select option {
   }
   select::picker(select) {
     color: var(--text);
-    background: #20262d;
-    border: 1px solid #46535e;
+    background: var(--menu-bg, #20262d);
+    border: 1px solid var(--subtle-border, #46535e);
     border-radius: 14px;
     padding: 5px;
     margin-block: 6px;
@@ -193,7 +193,7 @@ select option {
       0 12px 32px #0006,
       0 2px 8px #0003;
     scrollbar-width: thin;
-    scrollbar-color: #52616c #20262d;
+    scrollbar-color: var(--scrollbar-thumb, #52616c) var(--menu-bg, #20262d);
     opacity: 0;
     transform: translateY(-4px);
     transition:
@@ -234,17 +234,17 @@ select option {
   select option:hover,
   select option:focus-visible {
     outline: none;
-    background: #303c43;
-    color: #f1f5f7;
+    background: var(--control-hover, #303c43);
+    color: var(--strong-text, #f1f5f7);
   }
   select option:checked {
-    background: #2a4036;
-    color: #bef0d6;
+    background: var(--accent-bg, #2a4036);
+    color: var(--success-text, #bef0d6);
     font-weight: 550;
   }
   select option:checked:hover,
   select option:checked:focus-visible {
-    background: #354f42;
+    background: var(--accent-hover-bg, #354f42);
   }
   select option:disabled {
     opacity: 0.45;
@@ -267,13 +267,13 @@ textarea {
 }
 input::placeholder,
 textarea::placeholder {
-  color: #909ba7;
+  color: var(--subtle-text, #909ba7);
 }
 label {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  color: #c3ccd6;
+  color: var(--label-text, #c3ccd6);
   font-size: 13px;
   font-weight: 450;
   min-width: 0;
