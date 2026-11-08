@@ -353,18 +353,6 @@
   font-size: 15px;
   font-weight: 500;
 }
-.deadline-source {
-  padding: 16px;
-  border: 1px solid var(--accent);
-  border-radius: var(--radius-control);
-  margin-bottom: 10px;
-}
-.deadline-source .hint {
-  margin: 0;
-}
-.deadline-marker {
-  color: var(--accent);
-}
 .save-template {
   margin-top: 20px;
 }

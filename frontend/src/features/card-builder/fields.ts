@@ -194,13 +194,15 @@ export function dateFields(fields: CardField[]) {
   );
 }
 
-export function trackedDeadline(task: TaskInput, fields: CardField[]) {
-  const field = fields.find((field) => field.id === (task.deadline_field || 'deadline'));
-  if (!field) return '';
-  const value = fieldValue(task, field);
-  if (!value) return '';
-  const parsed = new Date(field.type === 'date' ? `${value}T23:59` : value);
-  return Number.isFinite(parsed.getTime()) ? parsed.toISOString() : '';
+export function earliestDeadline(task: TaskInput, fields: CardField[]) {
+  let earliest = '';
+  for (const field of dateFields(fields)) {
+    const date = fieldDeadline(task, field);
+    if (date && (!earliest || new Date(date).getTime() < new Date(earliest).getTime())) {
+      earliest = date;
+    }
+  }
+  return earliest;
 }
 
 export function dateTimeInput(value: string) {
@@ -214,5 +216,8 @@ export function audienceIDs(task: Pick<TaskInput, 'specialty_id' | 'specialty_id
 export function fieldDeadline(task: TaskInput, field: CardField) {
   const saved = task.date_deadlines?.[field.id];
   if (saved) return saved;
-  return trackedDeadline({ ...task, deadline_field: field.id }, [field]);
+  const value = fieldValue(task, field);
+  if (!value) return '';
+  const parsed = new Date(field.type === 'date' ? `${value}T23:59` : value);
+  return Number.isFinite(parsed.getTime()) ? parsed.toISOString() : '';
 }

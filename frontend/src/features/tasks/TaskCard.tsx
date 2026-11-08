@@ -3,8 +3,13 @@ import { CardCanvas, type CanvasEditor } from '../card-builder/CardCanvas';
 import { FieldIcon } from '../card-builder/FieldIcon';
 import { WorkStatusBadge } from '../catalog/WorkStatusBadge';
 import { type CardField, type Catalog, type Task } from '../../shared/types';
-import { formatDate, remaining, timezone, urgency, urgencyLabels } from './model';
-import { displayFieldValue, fieldValue, fieldDeadline } from '../card-builder/fields';
+import { formatDate, remaining, timezone, urgency } from './model';
+import {
+  dateFields,
+  displayFieldValue,
+  earliestDeadline,
+  fieldDeadline,
+} from '../card-builder/fields';
 
 function Field({ label, value }: { label: string; value: string }) {
   return (
@@ -43,10 +48,11 @@ export function TaskCard({
   const status = catalog.find((entry) => entry.id === task.status_id);
   const topicID = `topic-${preview ? 'preview-' : ''}${task.id}`;
   const detailsID = `details-${preview ? 'preview-' : ''}${task.id}`;
-  const source = task.deadline_field || 'deadline';
-  const sourceField = fields.find((field) => field.id === source);
-  const hasDate = sourceField && Boolean(fieldValue(task, sourceField));
-  const level = hasDate ? urgency(task, now) : 'neutral';
+  const dates = dateFields(fields)
+    .map((field) => ({ field, deadline: fieldDeadline(task, field) }))
+    .filter(({ deadline }) => Boolean(deadline));
+  const deadline = earliestDeadline(task, fields);
+  const level = deadline ? urgency({ ...task, deadline }, now) : 'neutral';
   const hasStatus = fields.some(
     (field) => field.id === 'status_id' && field.visibility !== 'hidden',
   );
@@ -93,13 +99,10 @@ export function TaskCard({
     const dated = { deadline: date, completed: task.completed };
     const dateLevel = date ? urgency(dated, now) : 'neutral';
     return (
-      <dl className={`field ${field.id === source ? 'deadline' : ''}`}>
+      <dl className="field">
         <dt className="field-label">
           <FieldIcon field={field} />
-          <span>
-            {field.label}
-            {field.id === source && <span className="deadline-marker"> · главная</span>}
-          </span>
+          <span>{field.label}</span>
         </dt>
         <dd className={!value ? 'muted' : ''}>
           {value || 'Не указано'}
@@ -128,12 +131,15 @@ export function TaskCard({
               <span className="record-id">{task.id ? `#${task.id}` : 'Новая карточка'}</span>
             </div>
             <div className="card-badges">
-              {hasDate && (
-                <span className={`urgency ${level}`}>
-                  <span aria-hidden="true">●</span>
-                  {urgencyLabels[level]}
-                </span>
-              )}
+              {dates.map(({ field, deadline }) => {
+                const dated = { deadline, completed: task.completed };
+                return (
+                  <span key={field.id} className={`urgency ${urgency(dated, now)}`}>
+                    <span aria-hidden="true">●</span>
+                    {field.label} · {remaining(dated, now, true)}
+                  </span>
+                );
+              })}
               <button
                 type="button"
                 className="disclosure-hint"

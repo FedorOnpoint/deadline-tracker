@@ -473,7 +473,8 @@ button:active:not(:disabled) {
   font-size: 11px;
   line-height: 1.4;
   font-weight: 500;
-  white-space: nowrap;
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 .urgency > span {
   font-size: 6px;

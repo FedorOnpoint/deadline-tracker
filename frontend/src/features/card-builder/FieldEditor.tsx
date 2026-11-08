@@ -1,12 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { CardField } from '../../shared/types';
-import {
-  builtinFields,
-  standardFields,
-  dateFields,
-  fieldTypeLabels,
-  visibilityLabels,
-} from './fields';
+import { builtinFields, standardFields, fieldTypeLabels, visibilityLabels } from './fields';
 
 const customTypes: CardField['type'][] = [
   'text',
@@ -25,8 +19,6 @@ export function FieldEditor({
   selected,
   selectionVersion,
   onSelect,
-  deadlineField,
-  onDeadlineChange,
   busy,
   renderInput,
 }: {
@@ -36,8 +28,6 @@ export function FieldEditor({
   selected: string | null;
   selectionVersion: number;
   onSelect: (id: string | null) => void;
-  deadlineField: string;
-  onDeadlineChange: (id: string) => void;
   busy: boolean;
   renderInput?: (field: CardField) => ReactNode;
 }) {
@@ -121,38 +111,17 @@ export function FieldEditor({
   return (
     <fieldset ref={root} className="builder-fields" disabled={busy}>
       <legend className="sr-only">Поля карточки</legend>
-      {dateFields(fields).length > 1 && (
-        <label className="deadline-source">
-          Считать дедлайн по
-          <select value={deadlineField} onChange={(event) => onDeadlineChange(event.target.value)}>
-            {dateFields(fields).map((field) => (
-              <option key={field.id} value={field.id}>
-                {field.label}
-              </option>
-            ))}
-          </select>
-          <span className="hint">
-            У каждой даты свой отсчёт. Главная дата определяет общую срочность и сортировку
-            карточки.
-          </span>
-        </label>
-      )}
       {fields.map((field, index) => {
         if (field.visibility === 'hidden') return null;
         const core = field.id === 'topic' || field.id === 'deadline';
         const custom = field.id.startsWith('custom_');
-        const tracked = field.id === deadlineField;
         return (
           <div
             key={field.id}
             data-editor-field-id={field.id}
             className={`builder-field ${selected === field.id ? 'is-selected' : ''}`}
           >
-            {renderInput && (
-              <div className="builder-value">
-                {renderInput({ ...field, required: field.required || tracked })}
-              </div>
-            )}
+            {renderInput && <div className="builder-value">{renderInput(field)}</div>}
             <details open={selected === field.id}>
               <summary
                 onClick={(event) => {
@@ -163,7 +132,6 @@ export function FieldEditor({
                 <span className="builder-field-number">{index + 1}</span>
                 <span className="builder-field-name">
                   {renderInput ? `Настроить: ${field.label}` : field.label}
-                  {tracked && <small>Дата отсчёта</small>}
                   {!renderInput && (
                     <small>
                       {fieldTypeLabels[field.type]}
@@ -198,8 +166,6 @@ export function FieldEditor({
                           type: next,
                           options: next === 'select' ? ['Вариант 1', 'Вариант 2'] : undefined,
                         });
-                        if (tracked && next !== 'date' && next !== 'datetime')
-                          onDeadlineChange('deadline');
                       }}
                     >
                       {custom ? (
@@ -228,7 +194,7 @@ export function FieldEditor({
                     >
                       <option value="summary">В карточке</option>
                       <option value="details">В подробностях</option>
-                      {!core && !tracked && <option value="hidden">Скрыто</option>}
+                      {!core && <option value="hidden">Скрыто</option>}
                     </select>
                   </label>
                 </div>
@@ -247,8 +213,8 @@ export function FieldEditor({
                 <label className="check">
                   <input
                     type="checkbox"
-                    checked={field.required || tracked}
-                    disabled={core || tracked}
+                    checked={field.required}
+                    disabled={core}
                     onChange={(event) => update(field.id, { required: event.target.checked })}
                   />
                   Обязательное поле
@@ -260,7 +226,6 @@ export function FieldEditor({
                       className="danger-subtle"
                       onClick={() => {
                         update(field.id, { visibility: 'hidden', required: false });
-                        if (tracked) onDeadlineChange('deadline');
                         onSelect(null);
                       }}
                     >

@@ -15,17 +15,16 @@ func setDateDeadlines(task *domain.Task) error {
 	if err != nil {
 		return domain.Invalid("Неизвестный часовой пояс")
 	}
+	if task.BaseDate.IsZero() {
+		task.BaseDate = task.Deadline
+	}
 	task.DateDeadlines = map[string]time.Time{}
 	for _, field := range task.Fields {
 		if field.Visibility == "hidden" || (field.Type != "date" && field.Type != "datetime") {
 			continue
 		}
 		if field.ID == "deadline" {
-			date := task.BaseDate
-			if date.IsZero() {
-				date = task.Deadline
-			}
-			task.DateDeadlines[field.ID] = date
+			task.DateDeadlines[field.ID] = task.BaseDate
 			continue
 		}
 		value := task.CustomFields[field.ID]
@@ -48,6 +47,18 @@ func setDateDeadlines(task *domain.Task) error {
 			return domain.Invalid("Некорректная дата в поле «" + field.Label + "»")
 		}
 		task.DateDeadlines[field.ID] = date.UTC()
+	}
+	// Keep the effective deadline aligned with the most urgent visible date.
+	var earliest time.Time
+	for _, field := range task.Fields {
+		date, exists := task.DateDeadlines[field.ID]
+		if exists && (earliest.IsZero() || date.Before(earliest)) {
+			earliest = date
+			task.DeadlineField = field.ID
+		}
+	}
+	if !earliest.IsZero() {
+		task.Deadline = earliest
 	}
 	return nil
 }

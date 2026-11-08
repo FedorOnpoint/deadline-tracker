@@ -3,7 +3,7 @@ import { api } from '../../shared/api/client';
 import type { CardField, Catalog, SectionDefinition, Task } from '../../shared/types';
 import { Modal } from '../../shared/ui/Modal';
 import { UnsavedChangesDialog } from '../../shared/ui/UnsavedChangesDialog';
-import { isCustomField, trackedDeadline } from './fields';
+import { isCustomField, earliestDeadline } from './fields';
 import { FieldEditor } from './FieldEditor';
 import { CardPreview } from './CardPreview';
 
@@ -79,7 +79,6 @@ export function CardBuilder({
   onSaved: () => Promise<void>;
 }) {
   const [fields, setFields] = useState<CardField[]>(() => structuredClone(section.fields));
-  const [deadlineField, setDeadlineField] = useState(section.deadline_field || 'deadline');
   const [selected, setSelected] = useState<string | null>(null);
   const [selectionVersion, setSelectionVersion] = useState(0);
   const [error, setError] = useState('');
@@ -87,13 +86,10 @@ export function CardBuilder({
   const [now] = useState(Date.now);
   const [discarding, setDiscarding] = useState(false);
   const [tab, setTab] = useState('settings');
-  const dirty =
-    JSON.stringify(fields) !== JSON.stringify(section.fields) ||
-    deadlineField !== (section.deadline_field || 'deadline');
+  const dirty = JSON.stringify(fields) !== JSON.stringify(section.fields);
   const example = previewTask(fields, catalog, section.key, now);
   example.base_date = example.deadline;
-  example.deadline_field = deadlineField;
-  example.deadline = trackedDeadline(example, fields) || example.deadline;
+  example.deadline = earliestDeadline(example, fields) || example.deadline;
 
   function select(id: string | null) {
     setSelected(id);
@@ -111,7 +107,7 @@ export function CardBuilder({
       await api(`/sections/${section.key}`, 'PUT', {
         ...section,
         fields,
-        deadline_field: deadlineField,
+        deadline_field: 'deadline',
       });
       await onSaved();
       onClose();
@@ -155,8 +151,6 @@ export function CardBuilder({
             selected={selected}
             selectionVersion={selectionVersion}
             onSelect={select}
-            deadlineField={deadlineField}
-            onDeadlineChange={setDeadlineField}
             busy={busy}
           />
         </div>

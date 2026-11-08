@@ -9,9 +9,10 @@ import {
   audienceIDs,
   builtinFields,
   changeField,
+  dateFields,
   defaultFields,
   fieldValue,
-  trackedDeadline,
+  earliestDeadline,
 } from '../card-builder/fields';
 import { FieldEditor } from '../card-builder/FieldEditor';
 import { CardPreview } from '../card-builder/CardPreview';
@@ -59,7 +60,7 @@ export function TaskForm({
     status_id: task?.status_id ?? null,
     deadline: task?.deadline || '',
     base_date: task?.base_date || task?.deadline || '',
-    deadline_field: task?.deadline_field || template?.deadline_field || 'deadline',
+    deadline_field: 'deadline',
     timezone: task?.timezone || timezone,
     email_date: task?.email_date || '',
     topic: task?.topic || '',
@@ -104,18 +105,22 @@ export function TaskForm({
       return '';
     return parsed.toISOString();
   }
-  const previewInput = { ...draft, base_date: baseDate() };
-  const sourceField = fields.find((field) => field.id === draft.deadline_field);
-  const keepTrackedDate =
-    task &&
-    sourceField?.type === 'date' &&
-    task.deadline_field === draft.deadline_field &&
-    fieldValue(task, sourceField) === fieldValue(draft, sourceField);
-  const deadline = keepTrackedDate ? task.deadline : trackedDeadline(previewInput, fields);
+  const savedDates: Record<string, string> = {};
+  const previewInput = {
+    ...draft,
+    base_date: baseDate(),
+    date_deadlines: savedDates,
+  };
+  for (const field of dateFields(fields)) {
+    const saved = task?.date_deadlines?.[field.id];
+    if (saved && task && fieldValue(task, field) === fieldValue(previewInput, field)) {
+      savedDates[field.id] = saved;
+    }
+  }
+  const deadline = earliestDeadline(previewInput, fields);
   const deadlineTimezone = task?.timezone || timezone;
   const preview: Task = {
     ...previewInput,
-    date_deadlines: undefined,
     fields,
     deadline: deadline || new Date(now + 86400000).toISOString(),
     id: task?.id || 0,
@@ -142,11 +147,11 @@ export function TaskForm({
     event.preventDefault();
     setError('');
     if (!baseDate()) {
-      setError('Укажите корректную основную дату и время в вашем часовом поясе.');
+      setError('Укажите корректную дату и время в вашем часовом поясе.');
       return;
     }
     if (!deadline) {
-      setError('Заполните выбранную дату для отсчёта дедлайна.');
+      setError('Укажите корректную дату.');
       return;
     }
     try {
@@ -372,8 +377,6 @@ export function TaskForm({
               selected={selected}
               selectionVersion={selectionVersion}
               onSelect={select}
-              deadlineField={draft.deadline_field || 'deadline'}
-              onDeadlineChange={(value) => update('deadline_field', value)}
               busy={busy}
               renderInput={input}
             />
