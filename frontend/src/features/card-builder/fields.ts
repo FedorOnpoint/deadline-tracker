@@ -102,6 +102,7 @@ export const fieldTypeLabels: Record<CardField['type'], string> = {
   select: 'Список',
   checkbox: 'Флажок',
   catalog: 'Справочник',
+  url: 'Ссылка на файл',
 };
 
 export const customFieldTypes: CardField['type'][] = [
@@ -112,6 +113,7 @@ export const customFieldTypes: CardField['type'][] = [
   'number',
   'select',
   'checkbox',
+  'url',
 ];
 
 export const visibilityLabels: Record<CardField['visibility'], string> = {

@@ -70,6 +70,8 @@ export function FieldInput({
         <input
           type={field.type === 'datetime' ? 'datetime-local' : field.type}
           required={field.required}
+          placeholder={field.type === 'url' ? 'https://…' : undefined}
+          pattern={field.type === 'url' ? 'https?://\\S+' : undefined}
           maxLength={20000}
           step={field.type === 'number' ? 'any' : undefined}
           min={field.type === 'date' ? '1900-01-01' : undefined}

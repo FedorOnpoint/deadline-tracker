@@ -29,6 +29,7 @@ const fieldPaths: Record<string, string> = {
 };
 
 const typePaths: Partial<Record<CardField['type'], string>> = {
+  url: fieldPaths.topic,
   date: fieldPaths.deadline,
   datetime: fieldPaths.deadline,
   checkbox: 'M3 3h18v18H3V3Zm4 9 3 3 7-7',

@@ -99,6 +99,41 @@ export function TaskCard({
         </dl>
       );
     const value = displayFieldValue(task, field, catalog);
+    if (field.type === 'url') {
+      let href = '';
+      if (value) {
+        try {
+          const link = new URL(value);
+          if (link.protocol === 'https:' || link.protocol === 'http:') href = link.href;
+        } catch {
+          return <Field label={field.label} value="Некорректная ссылка" />;
+        }
+      }
+      return (
+        <dl className="field">
+          <dt className="field-label">{field.label}</dt>
+          <dd>
+            {href ? (
+              <a
+                className="file-link"
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={`Открыть файл «${field.label}» в новой вкладке`}
+                title={`Открыть файл: ${field.label}`}
+                onClick={(event) => {
+                  if (!preview) event.stopPropagation();
+                }}
+              >
+                <FieldIcon field={field} />
+              </a>
+            ) : (
+              <span className="muted">{value ? 'Некорректная ссылка' : 'Не указано'}</span>
+            )}
+          </dd>
+        </dl>
+      );
+    }
     return (
       <dl className="field">
         <dt className="field-label">

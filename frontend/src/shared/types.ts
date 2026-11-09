@@ -9,7 +9,16 @@ export type CardFieldLayout = {
 export type CardField = {
   id: string;
   label: string;
-  type: 'text' | 'textarea' | 'number' | 'date' | 'datetime' | 'select' | 'checkbox' | 'catalog';
+  type:
+    | 'text'
+    | 'textarea'
+    | 'number'
+    | 'date'
+    | 'datetime'
+    | 'select'
+    | 'checkbox'
+    | 'catalog'
+    | 'url';
   required: boolean;
   visibility: 'summary' | 'details' | 'hidden';
   options?: string[];

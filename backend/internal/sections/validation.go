@@ -2,10 +2,12 @@ package sections
 
 import (
 	"math"
+	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	"deadline-tracker/internal/domain"
@@ -49,7 +51,7 @@ func ValidateFields(fields, previous []domain.CardField) error {
 				return domain.Invalid("Некорректный идентификатор поля")
 			}
 			switch field.Type {
-			case "text", "textarea", "number", "date", "datetime", "select", "checkbox":
+			case "text", "textarea", "number", "date", "datetime", "select", "checkbox", "url":
 			default:
 				return domain.Invalid("Неизвестный тип поля")
 			}
@@ -140,6 +142,9 @@ func ValidateValues(fields []domain.CardField, values, previous map[string]strin
 		}
 		valid := true
 		switch field.Type {
+		case "url":
+			link, err := url.ParseRequestURI(value)
+			valid = err == nil && !strings.ContainsFunc(value, unicode.IsSpace) && link.Hostname() != "" && (link.Scheme == "https" || link.Scheme == "http")
 		case "number":
 			n, err := strconv.ParseFloat(value, 64)
 			valid = err == nil && !math.IsNaN(n) && !math.IsInf(n, 0)
