@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"context"
+	"slices"
 
 	"deadline-tracker/internal/domain"
 )
@@ -43,11 +44,8 @@ func (service *Service) Save(ctx context.Context, userID, id int64, item domain.
 		}
 		for _, platformID := range item.PlatformIDs {
 			var oldID *int64
-			for _, previousID := range previous.PlatformIDs {
-				if previousID == platformID {
-					value := platformID
-					oldID = &value
-				}
+			if slices.Contains(previous.PlatformIDs, platformID) {
+				oldID = &platformID
 			}
 			if err := ValidateReference(ctx, tx, userID, &platformID, "platform", oldID, true); err != nil {
 				return err

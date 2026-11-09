@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../../shared/api/client';
 import type { Catalog, SectionDefinition, Task, TaskInput } from '../../shared/types';
-import { taskApi, type TaskChanges } from './api';
+import { taskApi, type SharedTask, type TaskChanges } from './api';
 
 export function useTaskData() {
+  const dataVersion = useRef(0);
+  const [sharedTasks, setSharedTasks] = useState<SharedTask[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [catalog, setCatalog] = useState<Catalog[]>([]);
   const [sections, setSections] = useState<SectionDefinition[]>([]);
@@ -16,12 +18,16 @@ export function useTaskData() {
   const [creatingExamples, setCreatingExamples] = useState(false);
 
   const refresh = useCallback(async () => {
-    const [loadedTasks, loadedCatalog, loadedSections] = await Promise.all([
+    const version = ++dataVersion.current;
+    const [loadedTasks, loadedCatalog, loadedSections, loadedShared] = await Promise.all([
       taskApi.list(),
       api<Catalog[]>('/catalog'),
       api<SectionDefinition[]>('/sections'),
+      taskApi.shared(),
     ]);
+    if (version !== dataVersion.current) return;
     setTasks(loadedTasks);
+    setSharedTasks(loadedShared);
     setCatalog(loadedCatalog);
     setSections(loadedSections);
   }, []);
@@ -39,7 +45,21 @@ export function useTaskData() {
     void retry().finally(() => setLoading(false));
   }, [retry]);
 
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible')
+        void refresh().catch((error: Error) => setError(error.message));
+    }, 30000);
+    return () => window.clearInterval(timer);
+  }, [refresh]);
+
   function replaceTask(updatedTask: Task) {
+    dataVersion.current += 1;
+    setSharedTasks((entries) =>
+      entries.map((entry) =>
+        entry.task.id === updatedTask.id ? { ...entry, task: updatedTask } : entry,
+      ),
+    );
     setTasks((tasks) => tasks.map((task) => (task.id === updatedTask.id ? updatedTask : task)));
   }
 
@@ -47,6 +67,7 @@ export function useTaskData() {
     setSaving(true);
     try {
       const createdTask = await taskApi.create(input);
+      dataVersion.current += 1;
       setTasks((tasks) => [...tasks, createdTask]);
       return createdTask;
     } finally {
@@ -86,6 +107,7 @@ export function useTaskData() {
     setError('');
     try {
       await taskApi.delete(id);
+      dataVersion.current += 1;
       setTasks((tasks) => tasks.filter((task) => task.id !== id));
       return true;
     } catch (error) {
@@ -112,6 +134,7 @@ export function useTaskData() {
 
   return {
     tasks,
+    sharedTasks,
     catalog,
     sections,
     loading,

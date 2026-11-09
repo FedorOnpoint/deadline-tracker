@@ -1,8 +1,5 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "crons": [
-    { "path": "/api/cron/deadlines", "schedule": "0 21 * * *" }
-  ],
   "services": {
     "api": {
       "root": "backend",

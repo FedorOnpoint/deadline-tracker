@@ -1,5 +1,5 @@
 import type { CardField, Catalog, TaskInput } from '../../shared/types';
-import { formatDate, localDateTime } from '../tasks/model';
+import { formatDate, localDateTime } from '../../shared/dates';
 
 export const builtinFields: CardField[] = [
   { id: 'topic', label: 'Название', type: 'textarea', required: true, visibility: 'summary' },

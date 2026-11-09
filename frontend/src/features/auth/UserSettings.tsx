@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { api } from '../../shared/api/client';
 import { Modal } from '../../shared/ui/Modal';
 import type { User } from '../../shared/types';
+import { TelegramSettings } from './TelegramSettings';
 import { AppearanceSettings } from '../../shared/ui/AppearanceSettings';
 
 export function UserSettings({ user, onClose }: { user: User; onClose: () => void }) {
@@ -49,6 +50,7 @@ export function UserSettings({ user, onClose }: { user: User; onClose: () => voi
         </div>
       </div>
       <AppearanceSettings />
+      <TelegramSettings />
       <form onSubmit={submit}>
         <h3>Сменить пароль</h3>
         <label>

@@ -430,3 +430,13 @@
     flex-direction: row;
   }
 }
+
+.telegram-settings {
+  margin-block: 24px;
+  padding-block: 20px;
+  border-block: 1px solid var(--border);
+}
+
+.telegram-settings form {
+  margin-top: 16px;
+}

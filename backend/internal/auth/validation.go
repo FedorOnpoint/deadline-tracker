@@ -5,7 +5,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"deadline-tracker/internal/httpx"
+	"deadline-tracker/internal/domain"
 )
 
 func normalizeCode(code string) string {
@@ -18,7 +18,7 @@ func normalizeLogin(login string) string { return strings.ToLower(strings.TrimSp
 
 func validatePassword(password string) error {
 	if utf8.RuneCountInString(password) < 8 || len(password) > 72 {
-		return httpx.Invalid("Пароль: от 8 символов и не более 72 байт")
+		return domain.Invalid("Пароль: от 8 символов и не более 72 байт")
 	}
 	return nil
 }

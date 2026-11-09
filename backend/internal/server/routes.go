@@ -2,6 +2,7 @@ package server
 
 import (
 	"net/http"
+	"os"
 
 	"deadline-tracker/internal/admin"
 	"deadline-tracker/internal/auth"
@@ -15,16 +16,37 @@ import (
 )
 
 func NewHandler(db *pgxpool.Pool, notifier *notifications.Service) http.Handler {
-	authHandler := &auth.Service{DB: db}
+	authService := &auth.Service{Repository: &auth.PostgresRepository{DB: db}}
+	authHandler := &auth.Handler{Service: authService}
 	catalogService := &catalog.Service{Repository: &catalog.PostgresRepository{DB: db}}
 	catalogHandler := &catalog.Handler{Service: catalogService}
-	taskService := &tasks.Service{Repository: &tasks.PostgresRepository{DB: db}, Deadlines: notifier}
+	taskService := &tasks.Service{
+		Repository: &tasks.PostgresRepository{DB: db, StatusChanges: notifications.StatusRecorder{}},
+		Deadlines:  notifier,
+	}
 	taskHandler := &tasks.Handler{Service: taskService}
-	sectionHandler := &sections.Handler{Service: &sections.Service{Repository: &sections.PostgresRepository{DB: db}}}
+	sectionService := &sections.Service{Repository: &sections.PostgresRepository{DB: db}}
+	sectionHandler := &sections.Handler{Service: sectionService}
 	adminService := &admin.Service{Repository: &admin.PostgresRepository{DB: db}}
 	adminHandler := &admin.Handler{Service: adminService}
+	sharingService := &tasks.SharingService{Repository: &tasks.PostgresSharingRepository{DB: db}}
+	sharing := &tasks.SharingHandler{Service: sharingService}
+	settingsService := &notifications.SettingsService{
+		Repository: &notifications.PostgresSettingsRepository{DB: db},
+		Telegram:   notifier.Telegram,
+	}
+	settingsHandler := &notifications.SettingsHandler{Service: settingsService}
+	cronHandler := &notifications.CronHandler{Service: notifier, Secret: os.Getenv("CRON_SECRET")}
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /api/cron/deadlines", httpx.Handle(notifier.Daily))
+	mux.HandleFunc("GET /api/tasks/shared", httpx.Handle(authHandler.Authenticated(sharing.List, false)))
+	mux.HandleFunc("GET /api/tasks/{id}/members", httpx.Handle(authHandler.Authenticated(sharing.Members, false)))
+	mux.HandleFunc("POST /api/tasks/{id}/members", httpx.Handle(authHandler.Authenticated(sharing.Add, false)))
+	mux.HandleFunc("DELETE /api/tasks/{id}/members/{memberID}", httpx.Handle(authHandler.Authenticated(sharing.Remove, false)))
+	mux.HandleFunc("GET /api/telegram", httpx.Handle(authHandler.Authenticated(settingsHandler.Settings, false)))
+	mux.HandleFunc("PUT /api/telegram", httpx.Handle(authHandler.Authenticated(settingsHandler.SaveSettings, false)))
+	mux.HandleFunc("POST /api/telegram/connect", httpx.Handle(authHandler.Authenticated(settingsHandler.Connect, false)))
+	mux.HandleFunc("DELETE /api/telegram", httpx.Handle(authHandler.Authenticated(settingsHandler.Disconnect, false)))
+	mux.HandleFunc("GET /api/cron/deadlines", httpx.Handle(cronHandler.Daily))
 	mux.HandleFunc("GET /api/health", httpx.Handle(func(w http.ResponseWriter, r *http.Request) error {
 		if err := db.Ping(r.Context()); err != nil {
 			return err

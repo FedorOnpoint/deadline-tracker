@@ -67,5 +67,8 @@ func Initialize(ctx context.Context, db *pgxpool.Pool) error {
 	if err = initializeCatalogSettings(ctx, tx); err != nil {
 		return err
 	}
+	if err = initializeCollaboration(ctx, tx); err != nil {
+		return err
+	}
 	return tx.Commit(ctx)
 }

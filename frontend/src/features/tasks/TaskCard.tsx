@@ -4,7 +4,8 @@ import { CardCanvas, type CanvasEditor } from '../card-builder/CardCanvas';
 import { FieldIcon } from '../card-builder/FieldIcon';
 import { WorkStatusBadge } from '../catalog/WorkStatusBadge';
 import { type CardField, type Catalog, type Task } from '../../shared/types';
-import { DAY, formatDate, remaining, timezone, urgency } from './model';
+import { DAY, remaining, urgency } from './model';
+import { formatDate, timezone } from '../../shared/dates';
 import {
   dateFields,
   displayFieldValue,
@@ -40,7 +41,7 @@ export function TaskCard({
   busy: boolean;
   preview?: boolean;
   onEdit: () => void;
-  onDelete: () => void;
+  onDelete?: () => void;
   onPatch: (data: Partial<Pick<Task, 'completed' | 'status_id'>>) => Promise<void>;
   canvasEditor?: CanvasEditor;
 }) {
@@ -265,18 +266,20 @@ export function TaskCard({
                     <path d="m15 5 4 4M4 15 16 3a2.8 2.8 0 0 1 4 4L8 19l-5 2 1-6Z" />
                   </svg>
                 </button>
-                <button
-                  type="button"
-                  className="danger-subtle"
-                  aria-label="Удалить"
-                  title="Удалить"
-                  disabled={busy}
-                  onClick={preview ? undefined : onDelete}
-                >
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7" />
-                  </svg>
-                </button>
+                {onDelete && (
+                  <button
+                    type="button"
+                    className="danger-subtle"
+                    aria-label="Удалить"
+                    title="Удалить"
+                    disabled={busy}
+                    onClick={preview ? undefined : onDelete}
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7" />
+                    </svg>
+                  </button>
+                )}
               </div>
             </div>
           </div>

@@ -47,7 +47,7 @@ func Run() {
 		slog.Error("database_unavailable")
 		os.Exit(1)
 	}
-	notifier := &notifications.Service{DB: db, Notifier: notifications.ConsoleNotifier{}}
+	notifier := &notifications.Service{DB: db, Notifier: notifications.ConsoleNotifier{}, Telegram: notifications.NewTelegram(os.Getenv("TELEGRAM_BOT_TOKEN"))}
 	if err = database.Initialize(ctx, db); err != nil {
 		slog.Error("migration_error", "error", err)
 		os.Exit(1)
@@ -66,6 +66,9 @@ func Run() {
 	}
 	if os.Getenv("VERCEL") != "1" {
 		go notifier.Run(ctx)
+		if notifier.Telegram != nil {
+			go notifier.RunTelegram(ctx)
+		}
 	}
 	go func() {
 		<-ctx.Done()

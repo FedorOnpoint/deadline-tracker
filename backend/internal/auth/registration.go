@@ -1,80 +1,70 @@
 package auth
 
 import (
+	"context"
 	"errors"
 	"log/slog"
-	"net/http"
 	"strings"
 	"unicode/utf8"
 
 	"deadline-tracker/internal/domain"
-	"deadline-tracker/internal/httpx"
 	"deadline-tracker/internal/security"
-
-	"github.com/jackc/pgx/v5"
 )
 
-func (handler *Service) Register(w http.ResponseWriter, r *http.Request) error {
-	var input struct {
-		Login    string `json:"login"`
-		Name     string `json:"name"`
-		Password string `json:"password"`
-		Code     string `json:"code"`
-	}
-	if err := httpx.Decode(w, r, &input); err != nil {
-		return err
-	}
-	if err := handler.limitAuth(r, "register:"+clientAddress(r), 20); err != nil {
-		return err
+type RegistrationInput struct {
+	Login    string `json:"login"`
+	Name     string `json:"name"`
+	Password string `json:"password"`
+	Code     string `json:"code"`
+}
+
+func (service *Service) Register(ctx context.Context, input RegistrationInput, address string) (Session, error) {
+	var session Session
+	if err := service.limitAuth(ctx, "register:"+address, 20); err != nil {
+		return session, err
 	}
 	input.Login = normalizeLogin(input.Login)
 	input.Name = strings.TrimSpace(input.Name)
 	input.Code = normalizeCode(input.Code)
 	if !validLogin.MatchString(input.Login) {
-		return httpx.Invalid("Логин: 3–64 латинских символа, цифры, точка, дефис или подчёркивание")
+		return session, domain.Invalid("Логин: 3–64 латинских символа, цифры, точка, дефис или подчёркивание")
 	}
 	if input.Name == "" || utf8.RuneCountInString(input.Name) > 100 {
-		return httpx.Invalid("Укажите имя до 100 символов")
+		return session, domain.Invalid("Укажите имя до 100 символов")
 	}
 	if err := validatePassword(input.Password); err != nil {
-		return err
+		return session, err
 	}
 	if len(input.Code) != 32 {
-		return httpx.Invalid("Неверный или недействительный код приглашения")
+		return session, domain.Invalid("Неверный или недействительный код приглашения")
 	}
-	ctx := r.Context()
-	tx, err := handler.DB.Begin(ctx)
+	var invitationID int64
+	err := service.Repository.Transaction(ctx, func(tx Transaction) error {
+		var err error
+		invitationID, err = tx.LockInvitation(ctx, security.Digest(input.Code))
+		if errors.Is(err, domain.ErrNotFound) {
+			return domain.Invalid("Код приглашения недействителен, истёк или уже использован")
+		}
+		if err != nil {
+			return err
+		}
+		hash, err := security.HashPassword(input.Password)
+		if err != nil {
+			return err
+		}
+		session.User, err = tx.CreateUser(ctx, input.Login, input.Name, hash)
+		if err != nil {
+			return err
+		}
+		if err := tx.UseInvitation(ctx, invitationID, session.User.ID); err != nil {
+			return err
+		}
+		session.Token, err = sessionToken(ctx, tx, session.User.ID)
+		return err
+	})
 	if err != nil {
-		return err
+		return Session{}, err
 	}
-	defer tx.Rollback(ctx)
-	var inviteID int64
-	err = tx.QueryRow(ctx, "SELECT id FROM invitations WHERE code_hash=$1 AND expires_at>now() AND NOT revoked AND used_by IS NULL FOR UPDATE", security.Digest(input.Code)).Scan(&inviteID)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return httpx.Invalid("Код приглашения недействителен, истёк или уже использован")
-	}
-	if err != nil {
-		return err
-	}
-	hash, err := security.HashPassword(input.Password)
-	if err != nil {
-		return err
-	}
-	var user domain.User
-	if err = tx.QueryRow(ctx, "INSERT INTO users(login,name,password_hash) VALUES($1,$2,$3) RETURNING id,login,name,role,disabled,created_at", input.Login, input.Name, hash).Scan(&user.ID, &user.Login, &user.Name, &user.Role, &user.Disabled, &user.CreatedAt); err != nil {
-		return err
-	}
-	if _, err = tx.Exec(ctx, "UPDATE invitations SET used_by=$1,used_at=now() WHERE id=$2", user.ID, inviteID); err != nil {
-		return err
-	}
-	token, err := sessionToken(ctx, tx, user.ID)
-	if err != nil {
-		return err
-	}
-	if err = tx.Commit(ctx); err != nil {
-		return err
-	}
-	setSession(w, r, token)
-	slog.Info("user_registered", "user_id", user.ID, "invitation_id", inviteID)
-	return httpx.Respond(w, 201, user)
+	slog.Info("user_registered", "user_id", session.User.ID, "invitation_id", invitationID)
+	return session, nil
 }

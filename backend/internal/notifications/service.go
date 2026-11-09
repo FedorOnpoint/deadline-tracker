@@ -2,15 +2,11 @@ package notifications
 
 import (
 	"context"
-	"crypto/subtle"
 	"errors"
 	"log/slog"
-	"net/http"
-	"os"
 	"time"
 
 	"deadline-tracker/internal/domain"
-	"deadline-tracker/internal/httpx"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -18,6 +14,7 @@ import (
 type Service struct {
 	DB       *pgxpool.Pool
 	Notifier Notifier
+	Telegram *Telegram
 }
 
 type Notification struct {
@@ -46,8 +43,8 @@ func LogDeliveryError(id int64, err error) {
 	slog.Error("notification_delivery_error", "task_id", id, "error", err)
 }
 
-func (handler *Service) Check(ctx context.Context, id int64) error {
-	tx, err := handler.DB.Begin(ctx)
+func (service *Service) Check(ctx context.Context, id int64) error {
+	tx, err := service.DB.Begin(ctx)
 	if err != nil {
 		return err
 	}
@@ -71,7 +68,7 @@ func (handler *Service) Check(ctx context.Context, id int64) error {
 	if sent {
 		return nil
 	}
-	if err = handler.Notifier.Deliver(ctx, n); err != nil {
+	if err = service.Notifier.Deliver(ctx, n); err != nil {
 		return err
 	}
 	if _, err = tx.Exec(ctx, "INSERT INTO notifications(task_id,cycle,urgency) VALUES($1,$2,$3)", id, n.Cycle, n.Urgency); err != nil {
@@ -79,8 +76,8 @@ func (handler *Service) Check(ctx context.Context, id int64) error {
 	}
 	return tx.Commit(ctx)
 }
-func (handler *Service) CheckAll(ctx context.Context) error {
-	rows, err := handler.DB.Query(ctx, "SELECT id FROM tasks WHERE NOT completed AND deadline <= now()+interval '14 days'")
+func (service *Service) CheckAll(ctx context.Context) error {
+	rows, err := service.DB.Query(ctx, "SELECT id FROM tasks WHERE NOT completed AND deadline <= now()+interval '14 days'")
 	if err != nil {
 		LogDeliveryError(0, err)
 		return err
@@ -103,25 +100,15 @@ func (handler *Service) CheckAll(ctx context.Context) error {
 	}
 	var deliveryErrors error
 	for _, id := range ids {
-		if err = handler.Check(ctx, id); err != nil {
+		if err = service.Check(ctx, id); err != nil {
 			LogDeliveryError(id, err)
 			deliveryErrors = errors.Join(deliveryErrors, err)
 		}
 	}
 	return deliveryErrors
 }
-func (handler *Service) Daily(w http.ResponseWriter, r *http.Request) error {
-	secret := os.Getenv("CRON_SECRET")
-	if secret == "" || subtle.ConstantTimeCompare([]byte(r.Header.Get("Authorization")), []byte("Bearer "+secret)) != 1 {
-		return &httpx.Error{Code: http.StatusUnauthorized, Message: "Unauthorized"}
-	}
-	if err := handler.CheckAll(r.Context()); err != nil {
-		return err
-	}
-	return httpx.Respond(w, http.StatusOK, map[string]string{"status": "ok"})
-}
-func (handler *Service) Run(ctx context.Context) {
-	handler.CheckAll(ctx)
+func (service *Service) Run(ctx context.Context) {
+	service.CheckAll(ctx)
 	ticker := time.NewTicker(time.Minute)
 	defer ticker.Stop()
 	for {
@@ -129,7 +116,7 @@ func (handler *Service) Run(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			handler.CheckAll(ctx)
+			service.CheckAll(ctx)
 		}
 	}
 }

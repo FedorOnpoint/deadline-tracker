@@ -1,3 +1,4 @@
+import { localDateTime, timezone } from '../../shared/dates';
 import { workingDaysBetween } from './russianCalendar';
 import type { DeadlineCalendar, Task } from '../../shared/types';
 
@@ -64,12 +65,6 @@ export function remaining(
   else value = `${Math.floor(minutes / 1440)} д. ${Math.floor((minutes % 1440) / 60)} ч.`;
   return delta <= 0 ? `Просрочено на ${value}` : `Осталось ${value}`;
 }
-export const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-export function localDateTime(value: string) {
-  const d = new Date(value);
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
 export function monthKey(t: Task) {
   return (t.email_date || localDateTime(t.deadline)).slice(0, 7);
 }
@@ -77,15 +72,6 @@ export function monthLabel(key: string) {
   return new Date(`${key}-01T12:00:00`).toLocaleDateString('ru-RU', {
     month: 'long',
     year: 'numeric',
-  });
-}
-export function formatDate(value: string, withTime = false) {
-  if (!value) return 'Не указано';
-  return new Date(withTime ? value : `${value}T12:00:00`).toLocaleString('ru-RU', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    ...(withTime ? { hour: '2-digit', minute: '2-digit' } : {}),
   });
 }
 export type Filters = {

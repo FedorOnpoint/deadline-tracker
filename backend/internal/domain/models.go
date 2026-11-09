@@ -14,6 +14,7 @@ type Catalog struct {
 	ReminderText string  `json:"reminder_text"`
 }
 type Task struct {
+	OwnerID         int64                `json:"owner_id"`
 	Section         string               `json:"section"`
 	Fields          []CardField          `json:"fields,omitempty"`
 	BaseDate        time.Time            `json:"base_date"`

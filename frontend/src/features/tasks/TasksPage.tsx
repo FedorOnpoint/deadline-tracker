@@ -12,6 +12,7 @@ import {
 import { CatalogManager } from '../catalog/CatalogManager';
 import { TaskFilters } from './TaskFilters';
 import { TaskForm } from './TaskForm';
+import { SharedTasks } from './SharedTasks';
 import { TaskList } from './TaskList';
 import { TaskStats } from './TaskStats';
 import { emptyFilters, monthKey, selectTasks, type Filters } from './model';
@@ -25,6 +26,7 @@ import { SectionManager } from '../card-builder/SectionManager';
 export default function TasksPage({ account }: { account: ReactNode }) {
   const {
     tasks,
+    sharedTasks,
     catalog,
     sections,
     loading,
@@ -46,6 +48,7 @@ export default function TasksPage({ account }: { account: ReactNode }) {
   } = useTaskData();
   const { preferences } = usePreferences();
   const defaultFilters = { ...emptyFilters, completion: preferences.showCompleted ? '' : 'open' };
+  const [showShared, setShowShared] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [now, setNow] = useState(Date.now());
   const [selectedSection, setSection] = useState<TaskSection>('medznat');
@@ -76,6 +79,18 @@ export default function TasksPage({ account }: { account: ReactNode }) {
     );
   }, [preferences.showCompleted]);
   const [form, setForm] = useState<Task | 'new' | null>(null);
+  const sharedForm =
+    form && form !== 'new' ? sharedTasks.find((entry) => entry.task.id === form.id) : undefined;
+  useEffect(() => {
+    if (
+      form &&
+      form !== 'new' &&
+      !loading &&
+      !tasks.some((task) => task.id === form.id) &&
+      !sharedTasks.some((entry) => entry.task.id === form.id)
+    )
+      setForm(null);
+  }, [form, tasks, sharedTasks, loading]);
   const [newPlatformID, setNewPlatformID] = useState(0);
   function newRecord(platformID = 0) {
     setNewPlatformID(platformID);
@@ -138,14 +153,24 @@ export default function TasksPage({ account }: { account: ReactNode }) {
         </div>
       </header>
       <main>
-        <SectionTabs
-          sections={sections}
-          tasks={tasks}
-          selected={section}
-          onSelect={setSection}
-          onCreate={(parent) => setCreatingSection({ parent })}
-          disabled={loading}
-        />
+        <div className="collaboration-tabs" role="group" aria-label="Доступ к карточкам">
+          <button aria-pressed={!showShared} onClick={() => setShowShared(false)}>
+            Мои карточки
+          </button>
+          <button aria-pressed={showShared} onClick={() => setShowShared(true)}>
+            Совместные · {sharedTasks.length}
+          </button>
+        </div>
+        {!showShared && (
+          <SectionTabs
+            sections={sections}
+            tasks={tasks}
+            selected={section}
+            onSelect={setSection}
+            onCreate={(parent) => setCreatingSection({ parent })}
+            disabled={loading}
+          />
+        )}
         {error && (
           <div className="error banner" role="alert">
             <span>{error}</span>
@@ -160,7 +185,16 @@ export default function TasksPage({ account }: { account: ReactNode }) {
             </button>
           </div>
         )}
-        {sectionDefinition?.parent_key ? (
+        {showShared ? (
+          <SharedTasks
+            entries={sharedTasks}
+            loading={loading}
+            now={now}
+            busyIDs={busyIDs}
+            onEdit={setForm}
+            onPatch={patchTask}
+          />
+        ) : sectionDefinition?.parent_key ? (
           <>
             {preferences.showStats && (
               <TaskStats
@@ -280,8 +314,9 @@ export default function TasksPage({ account }: { account: ReactNode }) {
           defaultSection={section}
           defaultPlatformID={newPlatformID}
           task={form === 'new' ? null : form}
-          catalog={catalog}
-          sections={selectableSections}
+          catalog={sharedForm?.catalog ?? catalog}
+          sections={sharedForm ? [sharedForm.section] : selectableSections}
+          canManage={!sharedForm}
           onClose={() => setForm(null)}
           onSave={(input) => (form === 'new' ? createTask(input) : updateTask(form.id, input))}
           saving={saving}
@@ -377,7 +412,7 @@ export default function TasksPage({ account }: { account: ReactNode }) {
         </Modal>
       )}
       <div className="sr-only" aria-live="polite">
-        {!loading && `Найдено записей: ${visible.length}`}
+        {!loading && `Найдено записей: ${showShared ? sharedTasks.length : visible.length}`}
       </div>
     </>
   );

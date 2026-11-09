@@ -12,15 +12,23 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type PostgresRepository struct{ DB *pgxpool.Pool }
+type StatusChangeRecorder interface {
+	Record(ctx context.Context, tx pgx.Tx, actorID int64, previous, current domain.Task) error
+}
+
+type PostgresRepository struct {
+	DB            *pgxpool.Pool
+	StatusChanges StatusChangeRecorder
+}
 type postgresTransaction struct {
-	tx pgx.Tx
+	tx            pgx.Tx
+	StatusChanges StatusChangeRecorder
 	catalog.PostgresReferences
 }
 
 func (repo *PostgresRepository) Transaction(ctx context.Context, run func(Transaction) error) error {
 	return database.InTransaction(ctx, repo.DB, func(tx pgx.Tx) error {
-		return run(&postgresTransaction{tx: tx, PostgresReferences: catalog.PostgresReferences{DB: tx}})
+		return run(&postgresTransaction{tx: tx, StatusChanges: repo.StatusChanges, PostgresReferences: catalog.PostgresReferences{DB: tx}})
 	})
 }
 
@@ -57,7 +65,7 @@ func (repo *PostgresRepository) Delete(ctx context.Context, userID, id int64) er
 }
 
 func (repo *postgresTransaction) Lock(ctx context.Context, userID, id int64) (domain.Task, error) {
-	if err := repo.tx.QueryRow(ctx, "SELECT id FROM tasks WHERE id=$1 AND user_id=$2 FOR UPDATE", id, userID).Scan(&id); err != nil {
+	if err := repo.tx.QueryRow(ctx, "SELECT id FROM tasks WHERE id=$1 AND (user_id=$2 OR EXISTS(SELECT 1 FROM task_members m WHERE m.task_id=tasks.id AND m.user_id=$2)) FOR UPDATE", id, userID).Scan(&id); err != nil {
 		return domain.Task{}, err
 	}
 	return repo.Get(ctx, userID, id)
@@ -172,4 +180,8 @@ func (repo *postgresTransaction) ActiveCatalogIDs(ctx context.Context, userID in
 		ids = append(ids, id)
 	}
 	return ids, rows.Err()
+}
+
+func (repo *postgresTransaction) RecordStatusChange(ctx context.Context, actorID int64, previous, current domain.Task) error {
+	return repo.StatusChanges.Record(ctx, repo.tx, actorID, previous, current)
 }

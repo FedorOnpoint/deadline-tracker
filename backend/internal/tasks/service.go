@@ -3,6 +3,7 @@ package tasks
 import (
 	"context"
 	"log/slog"
+	"slices"
 
 	"deadline-tracker/internal/catalog"
 	"deadline-tracker/internal/domain"
@@ -23,6 +24,7 @@ type Transaction interface {
 	ClaimExamples(ctx context.Context, userID int64) (bool, error)
 	ActiveCatalogIDs(ctx context.Context, userID int64, kind string) ([]int64, error)
 	CardFields(ctx context.Context, userID int64, section string) ([]domain.CardField, error)
+	RecordStatusChange(ctx context.Context, actorID int64, previous, current domain.Task) error
 }
 
 type DeadlineChecker interface {
@@ -96,6 +98,13 @@ func (service *Service) save(ctx context.Context, userID, id int64, patch bool, 
 			}
 		}
 		task := apply(previous)
+		ownerID := userID
+		if previous.ID != 0 {
+			ownerID = previous.OwnerID
+			if ownerID != userID && ((task.Section != "" && task.Section != previous.Section) || task.PlatformID != previous.PlatformID) {
+				return domain.Invalid("Только владелец может менять раздел и площадку совместной карточки")
+			}
+		}
 		if task.CustomFields == nil {
 			task.CustomFields = previous.CustomFields
 		}
@@ -103,7 +112,7 @@ func (service *Service) save(ctx context.Context, userID, id int64, patch bool, 
 			task.Section = previous.Section
 		}
 		if task.Section == "" && task.PlatformID > 0 {
-			platform, err := tx.FindReference(ctx, userID, task.PlatformID)
+			platform, err := tx.FindReference(ctx, ownerID, task.PlatformID)
 			if err != nil {
 				return err
 			}
@@ -112,10 +121,10 @@ func (service *Service) save(ctx context.Context, userID, id int64, patch bool, 
 			}
 		}
 		normalizeAudiences(&task)
-		if err := validateReferences(ctx, tx, userID, task, previous); err != nil {
+		if err := validateReferences(ctx, tx, ownerID, task, previous); err != nil {
 			return err
 		}
-		fields, err := tx.CardFields(ctx, userID, task.Section)
+		fields, err := tx.CardFields(ctx, ownerID, task.Section)
 		if err != nil {
 			return err
 		}
@@ -129,14 +138,17 @@ func (service *Service) save(ctx context.Context, userID, id int64, patch bool, 
 			id, err = tx.Insert(ctx, userID, task)
 		} else {
 			newCycle := !previous.Deadline.Equal(task.Deadline) || (previous.Completed && !task.Completed)
-			err = tx.Update(ctx, userID, id, task, newCycle)
+			err = tx.Update(ctx, ownerID, id, task, newCycle)
 		}
 		if err != nil {
 			return err
 		}
 		result, err = tx.Get(ctx, userID, id)
 		result.DateDeadlines = task.DateDeadlines
-		return err
+		if err != nil {
+			return err
+		}
+		return tx.RecordStatusChange(ctx, userID, previous, result)
 	})
 	if err != nil {
 		return domain.Task{}, err
@@ -195,11 +207,8 @@ func validateReferences(ctx context.Context, reader catalog.ReferenceReader, use
 		}
 		seen[id] = true
 		var oldID *int64
-		for _, previousID := range previous.SpecialtyIDs {
-			if previousID == id {
-				value := id
-				oldID = &value
-			}
+		if slices.Contains(previous.SpecialtyIDs, id) {
+			oldID = &id
 		}
 		if err := catalog.ValidateReference(ctx, reader, userID, &id, "specialty", oldID, false); err != nil {
 			return err

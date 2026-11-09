@@ -1,108 +1,22 @@
-import { useState, type FormEvent, type SetStateAction } from 'react';
+import { useState, type FormEvent } from 'react';
 import { Modal } from '../../shared/ui/Modal';
 import { UnsavedChangesDialog } from '../../shared/ui/UnsavedChangesDialog';
-import { api } from '../../shared/api/client';
-import type { CardField, Catalog, SectionDefinition, Task, TaskInput } from '../../shared/types';
-import { localDateTime, timezone } from './model';
-import { FieldInput } from '../card-builder/FieldInput';
-import {
-  audienceIDs,
-  builtinFields,
-  changeField,
-  dateFields,
-  defaultFields,
-  fieldValue,
-  earliestDeadline,
-} from '../card-builder/fields';
 import { FieldEditor } from '../card-builder/FieldEditor';
 import { CardPreview } from '../card-builder/CardPreview';
-import { useEditorHistory } from '../card-builder/useEditorHistory';
 import { BuilderHistory } from '../card-builder/BuilderHistory';
+import { TaskSharing } from './TaskSharing';
+import { TaskFieldInput } from './TaskFieldInput';
+import { useTaskForm, type TaskFormOptions } from './useTaskForm';
 
-export function TaskForm({
-  task,
-  catalog,
-  sections,
-  defaultSection,
-  defaultPlatformID = 0,
-  onClose,
-  onSave,
-  onTemplateSaved,
-  saving,
-}: {
-  task: Task | null;
-  catalog: Catalog[];
-  sections: SectionDefinition[];
-  defaultSection: string;
-  defaultPlatformID?: number;
-  onClose: () => void;
-  onSave: (input: TaskInput) => Promise<Task>;
-  onTemplateSaved: () => Promise<void>;
-  saving: boolean;
-}) {
-  const initialSection = task?.section || defaultSection;
-  const template = sections.find((section) => section.key === initialSection);
-  const initialFields = structuredClone(task?.fields ?? template?.fields ?? defaultFields());
-  if (!task && defaultPlatformID) {
-    const field = initialFields.find((field) => field.id === 'platform_id');
-    if (field) field.visibility = 'summary';
-    else initialFields.push({ ...builtinFields.find((field) => field.id === 'platform_id')! });
-  }
-  const initialDate = task ? localDateTime(task.base_date || task.deadline) : '';
-  const [showTime, setShowTime] = useState(false);
-  const initialDraft: TaskInput = {
-    section: initialSection,
-    platform_id: task?.platform_id ?? defaultPlatformID,
-    specialty_ids: task ? audienceIDs(task) : [],
-    sms: task?.sms ?? false,
-    specialty_id: task?.specialty_id ?? null,
-    status_id: task?.status_id ?? null,
-    deadline: task?.deadline || '',
-    base_date: task?.base_date || task?.deadline || '',
-    deadline_field: 'deadline',
-    timezone: task?.timezone || timezone,
-    email_date: task?.email_date || '',
-    topic: task?.topic || '',
-    project: task?.project || '',
-    header: task?.header || '',
-    preheader: task?.preheader || '',
-    comment: task?.comment || '',
-    owner: task?.owner || '',
-    custom_fields: { ...task?.custom_fields },
-    completed: task?.completed || false,
-  };
-  const [editor, setEditor, history] = useEditorHistory(() => ({
-    fields: structuredClone(initialFields),
-    draft: initialDraft,
-    date: initialDate.split('T')[0],
-    time: initialDate.split('T')[1] || '',
-  }));
-  const { fields, draft, date, time } = editor;
-  const setFields = (value: SetStateAction<CardField[]>) =>
-    setEditor((previous) => ({
-      ...previous,
-      fields: typeof value === 'function' ? value(previous.fields) : value,
-    }));
-  const setDraft = (value: SetStateAction<TaskInput>) =>
-    setEditor((previous) => ({
-      ...previous,
-      draft: typeof value === 'function' ? value(previous.draft) : value,
-    }));
-  const setDate = (date: string) => setEditor((previous) => ({ ...previous, date }));
-  const setTime = (time: string) => setEditor((previous) => ({ ...previous, time }));
+export function TaskForm(options: TaskFormOptions) {
+  const { task, catalog, sections, onClose, saving, canManage = true } = options;
+  const form = useTaskForm(options);
+  const { fields, draft } = form.editor;
+  const { history, preview, now, template, busy, dirty, error, notice, savingTemplate } = form;
   const [selected, setSelected] = useState<string | null>(null);
   const [selectionVersion, setSelectionVersion] = useState(0);
   const [tab, setTab] = useState('settings');
-  const [error, setError] = useState('');
-  const [notice, setNotice] = useState('');
-  const [savingTemplate, setSavingTemplate] = useState(false);
   const [discarding, setDiscarding] = useState(false);
-  const [now] = useState(Date.now);
-  const busy = saving || savingTemplate;
-  const [initialValues] = useState(() => JSON.stringify({ draft, fields, date, time }));
-  const dirty = JSON.stringify({ draft, fields, date, time }) !== initialValues;
-  const update = <K extends keyof TaskInput>(key: K, value: TaskInput[K]) =>
-    setDraft((previous) => ({ ...previous, [key]: value }));
   function select(id: string | null) {
     setSelected(id);
     setSelectionVersion((previous) => previous + 1);
@@ -112,231 +26,16 @@ export function TaskForm({
     if (dirty) setDiscarding(true);
     else onClose();
   }
-
-  function baseDate() {
-    if (!date) return '';
-    if (task && date === initialDate.split('T')[0] && time === initialDate.split('T')[1])
-      return task.base_date || task.deadline;
-    const value = `${date}T${time || '23:59'}`;
-    const parsed = new Date(value);
-    if (!Number.isFinite(parsed.getTime()) || localDateTime(parsed.toISOString()) !== value)
-      return '';
-    return parsed.toISOString();
-  }
-  const savedDates: Record<string, string> = {};
-  const previewInput = {
-    ...draft,
-    base_date: baseDate(),
-    date_deadlines: savedDates,
-  };
-  for (const field of dateFields(fields)) {
-    const saved = task?.date_deadlines?.[field.id];
-    if (saved && task && fieldValue(task, field) === fieldValue(previewInput, field)) {
-      savedDates[field.id] = saved;
-    }
-  }
-  const deadline = earliestDeadline(previewInput, fields);
-  const deadlineTimezone = task?.timezone || timezone;
-  const preview: Task = {
-    ...previewInput,
-    fields,
-    deadline: deadline || new Date(now + 86400000).toISOString(),
-    id: task?.id || 0,
-    completed_at: task?.completed_at || null,
-    created_at: task?.created_at || new Date(now).toISOString(),
-    updated_at: task?.updated_at || new Date(now).toISOString(),
-  };
-
-  function options(kind: Catalog['kind'], current: number | null) {
-    return catalog
-      .filter(
-        (entry) =>
-          entry.kind === kind &&
-          (!entry.archived || entry.id === current) &&
-          (kind !== 'platform' || entry.section === draft.section),
-      )
-      .map((entry) => ({
-        value: String(entry.id),
-        label: entry.name + (entry.archived ? ' (в архиве)' : ''),
-      }));
-  }
-
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setError('');
-    const form = event.currentTarget;
-    if (!form.checkValidity()) {
+    form.clearError();
+    const element = event.currentTarget;
+    if (!element.checkValidity()) {
       setTab('settings');
-      requestAnimationFrame(() => form.reportValidity());
+      requestAnimationFrame(() => element.reportValidity());
       return;
     }
-    if (!baseDate()) {
-      setError('Укажите корректную дату и время в вашем часовом поясе.');
-      return;
-    }
-    if (!deadline) {
-      setError('Укажите корректную дату.');
-      return;
-    }
-    try {
-      await onSave({
-        ...draft,
-        fields,
-        base_date: baseDate(),
-        deadline,
-        timezone: deadlineTimezone,
-      });
-      onClose();
-    } catch (error) {
-      setError((error as Error).message);
-    }
-  }
-
-  async function saveTemplate() {
-    const destination = sections.find((section) => section.key === draft.section);
-    if (!destination) return;
-    setSavingTemplate(true);
-    setError('');
-    setNotice('');
-    try {
-      await api(`/sections/${destination.key}`, 'PUT', {
-        ...destination,
-        fields,
-        deadline_field: draft.deadline_field,
-      });
-      setNotice(
-        `Шаблон раздела «${destination.label}» сохранён. Новые карточки получат этот набор полей.`,
-      );
-      await onTemplateSaved();
-    } catch (error) {
-      setError((error as Error).message);
-    } finally {
-      setSavingTemplate(false);
-    }
-  }
-
-  function input(field: CardField) {
-    if (field.id === 'deadline')
-      return (
-        <fieldset>
-          <legend>{field.label} *</legend>
-          <div className="form-grid">
-            <label>
-              Дата
-              <input
-                type="date"
-                min="1900-01-01"
-                max="9999-12-31"
-                required
-                value={date}
-                onChange={(event) => setDate(event.target.value)}
-              />
-            </label>
-            {showTime && (
-              <label>
-                Время (необязательно)
-                <input type="time" value={time} onChange={(event) => setTime(event.target.value)} />
-              </label>
-            )}
-          </div>
-          <button
-            type="button"
-            className="reset"
-            aria-expanded={showTime}
-            onClick={() => setShowTime(!showTime)}
-          >
-            {showTime ? 'Скрыть время' : 'Указать точное время'}
-          </button>
-        </fieldset>
-      );
-    if (field.id === 'specialty_id') {
-      const selected = audienceIDs(draft);
-      const choices = catalog.filter(
-        (entry) =>
-          entry.kind === 'specialty' &&
-          ((!entry.archived && (entry.platform_ids ?? []).includes(draft.platform_id)) ||
-            selected.includes(entry.id)),
-      );
-      return (
-        <fieldset>
-          <legend>
-            {field.label}
-            {field.required ? ' *' : ''}
-          </legend>
-          {!draft.platform_id && (
-            <p className="hint">Выберите площадку, чтобы увидеть её аудитории.</p>
-          )}
-          {!draft.platform_id &&
-            !fields.some(
-              (entry) => entry.id === 'platform_id' && entry.visibility !== 'hidden',
-            ) && (
-              <button
-                type="button"
-                disabled={
-                  fields.length >= 60 && !fields.some((entry) => entry.id === 'platform_id')
-                }
-                onClick={() => {
-                  const preset = builtinFields.find((entry) => entry.id === 'platform_id');
-                  if (preset)
-                    setFields((previous) => [
-                      ...previous.filter((entry) => entry.id !== preset.id),
-                      { ...preset },
-                    ]);
-                }}
-              >
-                Добавить поле «Площадка»
-              </button>
-            )}
-          {draft.platform_id > 0 && choices.length === 0 && (
-            <p className="hint">Добавьте аудитории этой площадки в справочниках.</p>
-          )}
-          <div className="audience-options">
-            {choices.map((entry) => (
-              <label className="check" key={entry.id}>
-                <input
-                  type="checkbox"
-                  checked={selected.includes(entry.id)}
-                  onChange={(event) => {
-                    const ids = event.target.checked
-                      ? [...selected, entry.id]
-                      : selected.filter((id) => id !== entry.id);
-                    setDraft((previous) => ({
-                      ...previous,
-                      specialty_ids: ids,
-                      specialty_id: ids[0] ?? null,
-                    }));
-                  }}
-                />
-                {entry.name}
-                {entry.archived ? ' (архив)' : ''}
-              </label>
-            ))}
-          </div>
-        </fieldset>
-      );
-    }
-    let choices;
-    if (field.id === 'platform_id') choices = options('platform', draft.platform_id);
-    if (field.id === 'status_id') choices = options('status', draft.status_id);
-    return (
-      <FieldInput
-        field={field}
-        value={fieldValue(draft, field)}
-        options={choices}
-        onChange={(value) =>
-          setDraft((previous) => {
-            const next = changeField(previous, field, value);
-            if (field.id === 'platform_id' && next.platform_id !== previous.platform_id) {
-              next.specialty_ids = audienceIDs(previous).filter((id) =>
-                catalog.find((entry) => entry.id === id)?.platform_ids?.includes(next.platform_id),
-              );
-              next.specialty_id = next.specialty_ids[0] ?? null;
-            }
-            return next;
-          })
-        }
-      />
-    );
+    await form.save();
   }
 
   return (
@@ -374,32 +73,37 @@ export function TaskForm({
             <FieldEditor
               fields={fields}
               previousFields={task?.fields ?? []}
-              onChange={setFields}
+              onChange={form.changeFields}
               selected={selected}
               selectionVersion={selectionVersion}
               onSelect={select}
               busy={busy}
-              renderInput={input}
+              renderInput={(field) => (
+                <TaskFieldInput
+                  field={field}
+                  catalog={catalog}
+                  editor={form.editor}
+                  canManage={canManage}
+                  onDateChange={form.changeDate}
+                  onTimeChange={form.changeTime}
+                  onChangeValue={form.changeValue}
+                  onAudiencesChange={form.changeAudiences}
+                  onAddPlatform={form.addPlatformField}
+                />
+              )}
               onEditStart={history.begin}
               onEditEnd={history.end}
             />
+            {task && canManage && <TaskSharing taskID={task.id} />}
             <details className="builder-extra">
               <summary>Дополнительно</summary>
-              {task && (
+              {task && canManage && (
                 <label>
                   Раздел
                   <select
                     disabled={busy}
                     value={draft.section}
-                    onChange={(event) =>
-                      setDraft((previous) => ({
-                        ...previous,
-                        section: event.target.value,
-                        platform_id: 0,
-                        specialty_ids: [],
-                        specialty_id: null,
-                      }))
-                    }
+                    onChange={(event) => form.changeSection(event.target.value)}
                   >
                     {sections.map((section) => (
                       <option key={section.key} value={section.key}>
@@ -412,8 +116,8 @@ export function TaskForm({
               <button
                 type="button"
                 className="save-template"
-                disabled={busy || !template}
-                onClick={() => void saveTemplate()}
+                disabled={busy || !template || !canManage}
+                onClick={() => void form.saveTemplate()}
               >
                 {savingTemplate ? 'Сохранение…' : 'Сохранить как шаблон'}
               </button>
@@ -426,7 +130,7 @@ export function TaskForm({
                     type="checkbox"
                     disabled={busy}
                     checked={draft.completed}
-                    onChange={(event) => update('completed', event.target.checked)}
+                    onChange={(event) => form.changeCompleted(event.target.checked)}
                   />
                   Выполнено
                 </label>
@@ -440,7 +144,7 @@ export function TaskForm({
             now={now}
             selected={selected}
             onSelect={select}
-            onChange={setFields}
+            onChange={form.changeFields}
             busy={busy}
             onEditStart={history.begin}
             onEditEnd={history.end}

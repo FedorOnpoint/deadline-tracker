@@ -3,6 +3,7 @@ package sections
 import (
 	"context"
 	"crypto/rand"
+	"slices"
 	"strings"
 	"unicode/utf8"
 
@@ -41,22 +42,8 @@ func (s *Service) Save(ctx context.Context, userID int64, key string, input doma
 		if err != nil {
 			return err
 		}
-		if input.ParentKey != "" {
-			parentFound := false
-			for _, section := range all {
-				if key != "" && section.ParentKey == key {
-					return domain.Invalid("Родительский раздел нельзя вложить в другой раздел")
-				}
-				if section.Key == input.ParentKey {
-					parentFound = true
-					if section.Key == key || section.ParentKey != "" {
-						return domain.Invalid("Допускаются только два уровня разделов без циклов")
-					}
-				}
-			}
-			if !parentFound {
-				return domain.Invalid("Родительский раздел не найден")
-			}
+		if err := validateSectionParent(all, key, input.ParentKey); err != nil {
+			return err
 		}
 		if key == "" {
 			if len(all) >= 100 {
@@ -66,58 +53,57 @@ func (s *Service) Save(ctx context.Context, userID int64, key string, input doma
 			input.Fields = domain.DefaultCardFields()
 			return tx.Insert(ctx, userID, input)
 		}
-		for _, old := range all {
-			if old.Key != key {
+		index := slices.IndexFunc(all, func(section domain.TaskSection) bool { return section.Key == key })
+		if index < 0 {
+			return domain.ErrNotFound
+		}
+		old := all[index]
+		if old.ParentKey != "" && input.ParentKey == "" {
+			used, err := tx.InUse(ctx, userID, key)
+			if err != nil {
+				return err
+			}
+			if used {
+				return domain.Invalid("Дочерний раздел с карточками или площадками нельзя сделать основным")
+			}
+		}
+		if old.Revision != input.Revision {
+			return domain.AlreadyExists("Раздел изменён в другом окне. Закройте конструктор и обновите данные.")
+		}
+		if err := ValidateFields(input.Fields, old.Fields); err != nil {
+			return err
+		}
+		if err := ValidateDeadlineField(input.Fields, input.DeadlineField); err != nil {
+			return err
+		}
+		input.Key = key
+		input.Revision++
+		if input.Position >= len(all) {
+			input.Position = len(all) - 1
+		}
+		// Persist a contiguous order, including revisions for displaced sections.
+		ordered := make([]domain.TaskSection, 0, len(all))
+		for _, section := range all {
+			if section.Key != key {
+				ordered = append(ordered, section)
+			}
+		}
+		ordered = append(ordered, domain.TaskSection{})
+		copy(ordered[input.Position+1:], ordered[input.Position:])
+		ordered[input.Position] = input
+		for position, section := range ordered {
+			if section.Key != key && section.Position == position {
 				continue
 			}
-			if old.ParentKey != "" && input.ParentKey == "" {
-				used, err := tx.InUse(ctx, userID, key)
-				if err != nil {
-					return err
-				}
-				if used {
-					return domain.Invalid("Дочерний раздел с карточками или площадками нельзя сделать основным")
-				}
+			if section.Key != key {
+				section.Revision++
 			}
-			if old.Revision != input.Revision {
-				return domain.AlreadyExists("Раздел изменён в другом окне. Закройте конструктор и обновите данные.")
-			}
-			if err := ValidateFields(input.Fields, old.Fields); err != nil {
+			section.Position = position
+			if err := tx.Update(ctx, userID, section); err != nil {
 				return err
 			}
-			if err := ValidateDeadlineField(input.Fields, input.DeadlineField); err != nil {
-				return err
-			}
-			input.Key = key
-			input.Revision++
-			if input.Position >= len(all) {
-				input.Position = len(all) - 1
-			}
-			// Persist a contiguous order, including revisions for displaced sections.
-			ordered := make([]domain.TaskSection, 0, len(all))
-			for _, section := range all {
-				if section.Key != key {
-					ordered = append(ordered, section)
-				}
-			}
-			ordered = append(ordered, domain.TaskSection{})
-			copy(ordered[input.Position+1:], ordered[input.Position:])
-			ordered[input.Position] = input
-			for position, section := range ordered {
-				if section.Key != key && section.Position == position {
-					continue
-				}
-				if section.Key != key {
-					section.Revision++
-				}
-				section.Position = position
-				if err := tx.Update(ctx, userID, section); err != nil {
-					return err
-				}
-			}
-			return nil
 		}
-		return domain.ErrNotFound
+		return nil
 	})
 	return input, err
 }
@@ -167,4 +153,25 @@ func (s *Service) Delete(ctx context.Context, userID int64, key string) error {
 		}
 		return nil
 	})
+}
+
+func validateSectionParent(sections []domain.TaskSection, key, parentKey string) error {
+	if parentKey != "" {
+		parentFound := false
+		for _, section := range sections {
+			if key != "" && section.ParentKey == key {
+				return domain.Invalid("Родительский раздел нельзя вложить в другой раздел")
+			}
+			if section.Key == parentKey {
+				parentFound = true
+				if section.Key == key || section.ParentKey != "" {
+					return domain.Invalid("Допускаются только два уровня разделов без циклов")
+				}
+			}
+		}
+		if !parentFound {
+			return domain.Invalid("Родительский раздел не найден")
+		}
+	}
+	return nil
 }

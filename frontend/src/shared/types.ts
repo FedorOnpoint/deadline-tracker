@@ -46,6 +46,7 @@ export type Catalog = {
   section: TaskSection;
 };
 export type Task = {
+  owner_id?: number;
   specialty_ids?: number[];
   sms?: boolean;
   date_deadlines?: Record<string, string>;
