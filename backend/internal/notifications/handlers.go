@@ -29,7 +29,20 @@ func (handler *CronHandler) Daily(w http.ResponseWriter, r *http.Request) error 
 	return httpx.Respond(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
-type SettingsHandler struct{ Service *SettingsService }
+type SettingsHandler struct {
+	Service *SettingsService
+	Digests *Service
+}
+
+func (handler *SettingsHandler) SendDigest(w http.ResponseWriter, r *http.Request) error {
+	if err := handler.Digests.SendDigestNow(r.Context(), auth.UserID(r.Context())); err != nil {
+		if errors.Is(err, ErrTelegramUnavailable) {
+			return &httpx.Error{Code: http.StatusServiceUnavailable, Message: err.Error()}
+		}
+		return err
+	}
+	return httpx.Respond(w, http.StatusOK, map[string]string{"status": "sent"})
+}
 
 func (handler *SettingsHandler) Settings(w http.ResponseWriter, r *http.Request) error {
 	settings, err := handler.Service.Settings(r.Context(), auth.UserID(r.Context()))

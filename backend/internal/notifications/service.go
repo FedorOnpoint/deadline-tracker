@@ -15,6 +15,7 @@ type Service struct {
 	DB       *pgxpool.Pool
 	Notifier Notifier
 	Telegram *Telegram
+	AppURL   string
 }
 
 type Notification struct {

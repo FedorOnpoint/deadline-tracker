@@ -6,7 +6,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
+	"strconv"
 	"time"
 )
 
@@ -33,6 +35,10 @@ func (bot *Telegram) call(ctx context.Context, method string, input, output any)
 		return fmt.Errorf("telegram: invalid request")
 	}
 	request.Header.Set("Content-Type", "application/json")
+	return bot.execute(request, method, output)
+}
+
+func (bot *Telegram) execute(request *http.Request, method string, output any) error {
 	response, err := bot.Client.Do(request)
 	// Transport errors contain the URL, including the bot token. Never propagate it to logs.
 	if err != nil {
@@ -54,6 +60,38 @@ func (bot *Telegram) call(ctx context.Context, method string, input, output any)
 		return json.Unmarshal(envelope.Result, output)
 	}
 	return nil
+}
+
+func (bot *Telegram) SendDigest(ctx context.Context, chatID int64, photo []byte, caption, appURL string) error {
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	fields := map[string]string{"chat_id": strconv.FormatInt(chatID, 10), "caption": caption}
+	markup, err := json.Marshal(map[string]any{"inline_keyboard": [][]map[string]string{{{"text": "Открыть задачи", "url": appURL}}}})
+	if err != nil {
+		return err
+	}
+	fields["reply_markup"] = string(markup)
+	for name, value := range fields {
+		if err := writer.WriteField(name, value); err != nil {
+			return err
+		}
+	}
+	file, err := writer.CreateFormFile("photo", "digest.png")
+	if err != nil {
+		return err
+	}
+	if _, err := file.Write(photo); err != nil {
+		return err
+	}
+	if err := writer.Close(); err != nil {
+		return err
+	}
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, bot.baseURL+"/bot"+bot.Token+"/sendPhoto", &body)
+	if err != nil {
+		return fmt.Errorf("telegram: invalid request")
+	}
+	request.Header.Set("Content-Type", writer.FormDataContentType())
+	return bot.execute(request, "sendPhoto", nil)
 }
 
 func (bot *Telegram) Send(ctx context.Context, chatID int64, text string) error {

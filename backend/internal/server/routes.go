@@ -16,6 +16,12 @@ import (
 )
 
 func NewHandler(db *pgxpool.Pool, notifier *notifications.Service) http.Handler {
+	if notifier.AppURL == "" {
+		notifier.AppURL = os.Getenv("APP_URL")
+		if notifier.AppURL == "" {
+			notifier.AppURL = "https://deadline-tracker-xi-one.vercel.app/"
+		}
+	}
 	authService := &auth.Service{Repository: &auth.PostgresRepository{DB: db}}
 	authHandler := &auth.Handler{Service: authService}
 	catalogService := &catalog.Service{Repository: &catalog.PostgresRepository{DB: db}}
@@ -35,7 +41,7 @@ func NewHandler(db *pgxpool.Pool, notifier *notifications.Service) http.Handler 
 		Repository: &notifications.PostgresSettingsRepository{DB: db},
 		Telegram:   notifier.Telegram,
 	}
-	settingsHandler := &notifications.SettingsHandler{Service: settingsService}
+	settingsHandler := &notifications.SettingsHandler{Service: settingsService, Digests: notifier}
 	cronHandler := &notifications.CronHandler{Service: notifier, Secret: os.Getenv("CRON_SECRET")}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/tasks/shared", httpx.Handle(authHandler.Authenticated(sharing.List, false)))
@@ -45,6 +51,7 @@ func NewHandler(db *pgxpool.Pool, notifier *notifications.Service) http.Handler 
 	mux.HandleFunc("GET /api/telegram", httpx.Handle(authHandler.Authenticated(settingsHandler.Settings, false)))
 	mux.HandleFunc("PUT /api/telegram", httpx.Handle(authHandler.Authenticated(settingsHandler.SaveSettings, false)))
 	mux.HandleFunc("POST /api/telegram/connect", httpx.Handle(authHandler.Authenticated(settingsHandler.Connect, false)))
+	mux.HandleFunc("POST /api/telegram/digest", httpx.Handle(authHandler.Authenticated(settingsHandler.SendDigest, false)))
 	mux.HandleFunc("DELETE /api/telegram", httpx.Handle(authHandler.Authenticated(settingsHandler.Disconnect, false)))
 	mux.HandleFunc("GET /api/cron/deadlines", httpx.Handle(cronHandler.Daily))
 	mux.HandleFunc("GET /api/health", httpx.Handle(func(w http.ResponseWriter, r *http.Request) error {

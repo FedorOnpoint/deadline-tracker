@@ -4,6 +4,8 @@ import { telegramApi, type TelegramSettings, type TelegramPreferences } from './
 export function useTelegramSettings() {
   const [settings, setSettings] = useState<TelegramSettings | null>(null);
   const [busy, setBusy] = useState(false);
+  const [sendingDigest, setSendingDigest] = useState(false);
+  const [digestError, setDigestError] = useState('');
   const [link, setLink] = useState('');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -82,9 +84,28 @@ export function useTelegramSettings() {
   function changePreferences(changes: Partial<TelegramPreferences>) {
     setSettings((previous) => (previous ? { ...previous, ...changes } : previous));
   }
+  async function sendDigest() {
+    setBusy(true);
+    setSendingDigest(true);
+    setError('');
+    setDigestError('');
+    setNotice('');
+    try {
+      await telegramApi.sendDigest();
+      setNotice('Сводка отправлена в Telegram.');
+    } catch (error) {
+      setDigestError((error as Error).message);
+    } finally {
+      setBusy(false);
+      setSendingDigest(false);
+    }
+  }
   return {
     settings,
     busy,
+    sendingDigest,
+    digestError,
+    sendDigest,
     link,
     error,
     notice,

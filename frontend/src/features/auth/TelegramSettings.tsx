@@ -4,6 +4,9 @@ export function TelegramSettings() {
   const {
     settings,
     busy,
+    sendingDigest,
+    digestError,
+    sendDigest,
     link,
     error,
     notice,
@@ -122,6 +125,19 @@ export function TelegramSettings() {
             </label>
             <button disabled={busy}>Сохранить уведомления</button>
           </form>
+          {settings.connected && (
+            <div className="telegram-digest-preview">
+              <button type="button" disabled={busy} onClick={() => void sendDigest()}>
+                {sendingDigest ? 'Отправляем сводку…' : 'Отправить сводку сейчас'}
+              </button>
+              <p className="hint">Придёт в Telegram. Время плановой сводки не изменится.</p>
+              {digestError && (
+                <p className="error" role="alert">
+                  {digestError}
+                </p>
+              )}
+            </div>
+          )}
         </>
       )}
       {error && (

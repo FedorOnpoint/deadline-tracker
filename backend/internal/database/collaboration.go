@@ -24,6 +24,7 @@ func initializeCollaboration(ctx context.Context, tx pgx.Tx) error {
    last_digest_date date,
    connected_at timestamptz
  );
+ ALTER TABLE telegram_settings ADD COLUMN IF NOT EXISTS last_manual_digest_at timestamptz;
  CREATE TABLE IF NOT EXISTS telegram_links (
    user_id bigint PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
    token_hash text UNIQUE NOT NULL,

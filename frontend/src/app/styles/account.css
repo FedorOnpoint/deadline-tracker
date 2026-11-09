@@ -475,3 +475,16 @@
 .telegram-connect-hint {
   margin-top: 12px;
 }
+
+.telegram-digest-preview {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+
+.telegram-digest-preview .hint {
+  margin: 0;
+}
