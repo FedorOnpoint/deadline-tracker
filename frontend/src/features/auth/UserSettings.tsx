@@ -3,9 +3,18 @@ import { api } from '../../shared/api/client';
 import { Modal } from '../../shared/ui/Modal';
 import type { User } from '../../shared/types';
 import { TelegramSettings } from './TelegramSettings';
+import { AvatarSettings } from './AvatarSettings';
 import { AppearanceSettings } from '../../shared/ui/AppearanceSettings';
 
-export function UserSettings({ user, onClose }: { user: User; onClose: () => void }) {
+export function UserSettings({
+  user,
+  onClose,
+  onUserChange,
+}: {
+  user: User;
+  onClose: () => void;
+  onUserChange: (user: User) => void;
+}) {
   const [current, setCurrent] = useState('');
   const [password, setPassword] = useState('');
   const [confirmation, setConfirmation] = useState('');
@@ -40,15 +49,10 @@ export function UserSettings({ user, onClose }: { user: User; onClose: () => voi
         if (!busy) onClose();
       }}
     >
-      <div className="profile-summary">
-        <span className="avatar" aria-hidden="true">
-          {user.name.slice(0, 1)}
-        </span>
-        <div>
-          <strong>{user.name}</strong>
-          <p className="muted">@{user.login}</p>
-        </div>
-      </div>
+      <AvatarSettings
+        user={user}
+        onAvatarChange={(hasAvatar) => onUserChange({ ...user, has_avatar: hasAvatar })}
+      />
       <AppearanceSettings />
       <TelegramSettings />
       <form onSubmit={submit}>

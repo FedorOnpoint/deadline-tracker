@@ -23,6 +23,8 @@ type Session struct {
 }
 
 type Repository interface {
+	SaveAvatar(context.Context, int64, []byte) error
+	Avatar(context.Context, int64) ([]byte, error)
 	IncrementAttempts(ctx context.Context, scopeHash string) (int, error)
 	FindSession(ctx context.Context, tokenHash string) (domain.User, error)
 	DeleteSession(ctx context.Context, tokenHash string) error

@@ -10,9 +10,10 @@ export type SharedTask = {
   owner_name: string;
 };
 
-export type TaskMember = { id: number; login: string; name: string };
+export type TaskMember = { has_avatar?: boolean; id: number; login: string; name: string };
 
 export const taskApi = {
+  candidates: (id: number) => api<TaskMember[]>(`/tasks/${id}/candidates`),
   members: (id: number) => api<TaskMember[]>(`/tasks/${id}/members`),
   addMember: (id: number, login: string) => api(`/tasks/${id}/members`, 'POST', { login }),
   removeMember: (id: number, memberID: number) => api(`/tasks/${id}/members/${memberID}`, 'DELETE'),

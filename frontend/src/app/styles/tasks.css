@@ -985,12 +985,12 @@ footer {
   margin: 0;
 }
 
-.task-sharing-invite input,
+.task-sharing-invite select,
 .task-sharing-invite button {
   min-height: 40px;
 }
 
-.task-sharing-invite input:focus-visible {
+.task-sharing-invite select:focus-visible {
   outline-offset: -2px;
   border-color: var(--accent);
 }
@@ -1148,4 +1148,73 @@ footer {
   .shared-tasks .card-top {
     align-items: flex-start;
   }
+}
+
+.sharing-candidates {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.sharing-candidates legend {
+  padding: 0;
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.sharing-candidate-list {
+  display: grid;
+  gap: 4px;
+  max-height: 240px;
+  overflow-y: auto;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+}
+.sharing-candidate-list:empty {
+  display: none;
+}
+.sharing-candidate-list .sharing-candidate {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  padding: 8px;
+  border-radius: var(--radius-small);
+  cursor: pointer;
+}
+.sharing-candidate:has(input:checked) {
+  background: var(--surface-raised);
+}
+.sharing-candidate:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.sharing-candidate input {
+  width: 16px;
+  min-height: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+.sharing-candidate > span:last-child {
+  display: grid;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.sharing-candidate strong {
+  font-size: 13px;
+  font-weight: 500;
+}
+.sharing-candidate .muted {
+  font-size: 12px;
+}
+.sharing-user {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }

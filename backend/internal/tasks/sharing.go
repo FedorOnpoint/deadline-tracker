@@ -15,9 +15,10 @@ type SharedTask struct {
 }
 
 type Member struct {
-	ID    int64  `json:"id"`
-	Login string `json:"login"`
-	Name  string `json:"name"`
+	HasAvatar bool   `json:"has_avatar"`
+	ID        int64  `json:"id"`
+	Login     string `json:"login"`
+	Name      string `json:"name"`
 }
 
 type SharingRepository interface {
@@ -26,6 +27,7 @@ type SharingRepository interface {
 }
 
 type SharingTransaction interface {
+	ListCandidates(ctx context.Context, ownerID int64) ([]Member, error)
 	LockOwner(ctx context.Context, userID, taskID int64) error
 	ListMembers(ctx context.Context, taskID int64) ([]Member, error)
 	FindMember(ctx context.Context, login string) (Member, error)
@@ -79,4 +81,17 @@ func (service *SharingService) Remove(ctx context.Context, ownerID, taskID, memb
 		}
 		return tx.RemoveMember(ctx, taskID, memberID)
 	})
+}
+
+func (service *SharingService) Candidates(ctx context.Context, ownerID, taskID int64) ([]Member, error) {
+	var users []Member
+	err := service.Repository.Transaction(ctx, func(tx SharingTransaction) error {
+		if err := tx.LockOwner(ctx, ownerID, taskID); err != nil {
+			return err
+		}
+		var err error
+		users, err = tx.ListCandidates(ctx, ownerID)
+		return err
+	})
+	return users, err
 }

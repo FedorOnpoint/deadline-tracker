@@ -1,8 +1,19 @@
+import { UserAvatar } from '../../shared/ui/UserAvatar';
 import { useTaskSharing } from './useTaskSharing';
 
 export function TaskSharing({ taskID }: { taskID: number }) {
-  const { members, login, loading, busy, error, notice, changeLogin, addMember, removeMember } =
-    useTaskSharing(taskID);
+  const {
+    members,
+    candidates,
+    login,
+    loading,
+    busy,
+    error,
+    notice,
+    changeLogin,
+    addMember,
+    removeMember,
+  } = useTaskSharing(taskID);
 
   return (
     <details className="builder-extra task-sharing">
@@ -16,7 +27,11 @@ export function TaskSharing({ taskID }: { taskID: number }) {
         <ul className="task-members">
           {members.map((member) => (
             <li key={member.id}>
-              <span>
+              <span className="sharing-user">
+                <UserAvatar
+                  name={member.name}
+                  src={member.has_avatar ? `/api/users/${member.id}/avatar` : undefined}
+                />
                 {member.name} <span className="muted">@{member.login}</span>
               </span>
               <button
@@ -31,17 +46,34 @@ export function TaskSharing({ taskID }: { taskID: number }) {
           ))}
         </ul>
         <div className="task-sharing-invite">
-          <label>
-            Логин пользователя
-            <input
-              value={login}
-              disabled={busy || loading}
-              maxLength={100}
-              autoComplete="off"
-              placeholder="Например, ivan.petrov"
-              onChange={(event) => changeLogin(event.target.value)}
-            />
-          </label>
+          <fieldset className="sharing-candidates" disabled={busy || loading}>
+            <legend>Пользователь</legend>
+            {loading && <p className="hint">Загрузка…</p>}
+            {!loading && candidates.length === 0 && (
+              <p className="hint">Нет пользователей для добавления.</p>
+            )}
+            <div className="sharing-candidate-list">
+              {candidates.map((user) => (
+                <label className="sharing-candidate" key={user.id}>
+                  <input
+                    type="radio"
+                    name={`participant-${taskID}`}
+                    value={user.login}
+                    checked={login === user.login}
+                    onChange={() => changeLogin(user.login)}
+                  />
+                  <UserAvatar
+                    name={user.name}
+                    src={user.has_avatar ? `/api/users/${user.id}/avatar` : undefined}
+                  />
+                  <span>
+                    <strong>{user.name}</strong>
+                    <span className="muted">@{user.login}</span>
+                  </span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
           <button
             type="button"
             disabled={busy || loading || !login.trim()}

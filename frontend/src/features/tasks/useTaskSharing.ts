@@ -3,6 +3,7 @@ import { taskApi, type TaskMember } from './api';
 
 export function useTaskSharing(taskID: number) {
   const [members, setTaskMembers] = useState<TaskMember[]>([]);
+  const [users, setUsers] = useState<TaskMember[]>([]);
   const [login, setLogin] = useState('');
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -11,10 +12,12 @@ export function useTaskSharing(taskID: number) {
 
   useEffect(() => {
     let active = true;
-    taskApi
-      .members(taskID)
-      .then((result) => {
-        if (active) setTaskMembers(result);
+    Promise.all([taskApi.members(taskID), taskApi.candidates(taskID)])
+      .then(([members, users]) => {
+        if (active) {
+          setTaskMembers(members);
+          setUsers(users);
+        }
       })
       .catch((error: Error) => {
         if (active) setError(error.message);
@@ -48,6 +51,7 @@ export function useTaskSharing(taskID: number) {
 
   return {
     members,
+    candidates: users.filter((user) => !members.some((member) => member.id === user.id)),
     login,
     loading,
     busy,

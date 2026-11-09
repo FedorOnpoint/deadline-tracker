@@ -8,6 +8,7 @@ import (
 
 func initializeCollaboration(ctx context.Context, tx pgx.Tx) error {
 	_, err := tx.Exec(ctx, `
+ ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar bytea;
  CREATE TABLE IF NOT EXISTS task_members (
    task_id bigint NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
    user_id bigint NOT NULL REFERENCES users(id) ON DELETE CASCADE,

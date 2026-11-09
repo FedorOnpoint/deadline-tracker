@@ -99,7 +99,9 @@ export default function AuthenticatedApp() {
       ) : (
         <TasksPage key={user.id} account={account} />
       )}
-      {settings && <UserSettings user={user} onClose={() => setSettings(false)} />}
+      {settings && (
+        <UserSettings user={user} onUserChange={setUser} onClose={() => setSettings(false)} />
+      )}
     </>
   );
 }

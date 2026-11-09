@@ -20,9 +20,9 @@ func (repo *PostgresRepository) Transaction(ctx context.Context, run func(Transa
 func (repo *PostgresRepository) FindSession(ctx context.Context, tokenHash string) (domain.User, error) {
 	var user domain.User
 	err := repo.DB.QueryRow(ctx, `
- SELECT u.id,u.login,u.name,u.role,u.disabled,u.created_at
+ SELECT u.id,u.login,u.name,u.role,u.disabled,u.created_at,u.avatar IS NOT NULL
  FROM sessions s JOIN users u ON u.id=s.user_id
- WHERE s.token_hash=$1 AND s.expires_at>now() AND NOT u.disabled`, tokenHash).Scan(&user.ID, &user.Login, &user.Name, &user.Role, &user.Disabled, &user.CreatedAt)
+ WHERE s.token_hash=$1 AND s.expires_at>now() AND NOT u.disabled`, tokenHash).Scan(&user.ID, &user.Login, &user.Name, &user.Role, &user.Disabled, &user.CreatedAt, &user.HasAvatar)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return user, domain.ErrNotFound
 	}
@@ -104,4 +104,14 @@ func (repo *postgresTransaction) DeleteSession(ctx context.Context, tokenHash st
 func (repo *postgresTransaction) CleanupExpired(ctx context.Context) error {
 	_, err := repo.tx.Exec(ctx, `DELETE FROM sessions WHERE expires_at<=now(); DELETE FROM auth_limits WHERE resets_at<=now()`)
 	return err
+}
+
+func (repo *PostgresRepository) SaveAvatar(ctx context.Context, userID int64, data []byte) error {
+	_, err := repo.DB.Exec(ctx, `UPDATE users SET avatar=$2 WHERE id=$1 AND NOT disabled`, userID, data)
+	return err
+}
+func (repo *PostgresRepository) Avatar(ctx context.Context, userID int64) ([]byte, error) {
+	var data []byte
+	err := repo.DB.QueryRow(ctx, `SELECT avatar FROM users WHERE id=$1 AND NOT disabled`, userID).Scan(&data)
+	return data, err
 }

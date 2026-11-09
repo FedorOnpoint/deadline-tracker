@@ -77,6 +77,7 @@ export type Task = {
 export type TaskInput = Omit<Task, 'id' | 'created_at' | 'updated_at' | 'completed_at'>;
 
 export type User = {
+  has_avatar?: boolean;
   id: number;
   login: string;
   name: string;

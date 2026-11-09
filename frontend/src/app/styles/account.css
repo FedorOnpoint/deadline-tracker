@@ -488,3 +488,35 @@
 .telegram-digest-preview .hint {
   margin: 0;
 }
+
+.user-avatar {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 36px;
+  width: 36px;
+  height: 36px;
+  overflow: hidden;
+  border-radius: 50%;
+  background: var(--surface-raised);
+  color: var(--muted);
+  font-weight: 600;
+}
+.user-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.avatar-settings .user-avatar {
+  width: 56px;
+  height: 56px;
+  flex-basis: 56px;
+}
+.avatar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.avatar-settings .hint {
+  margin-top: 8px;
+}

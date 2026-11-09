@@ -45,6 +45,7 @@ func NewHandler(db *pgxpool.Pool, notifier *notifications.Service) http.Handler 
 	cronHandler := &notifications.CronHandler{Service: notifier, Secret: os.Getenv("CRON_SECRET")}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/tasks/shared", httpx.Handle(authHandler.Authenticated(sharing.List, false)))
+	mux.HandleFunc("GET /api/tasks/{id}/candidates", httpx.Handle(authHandler.Authenticated(sharing.Candidates, false)))
 	mux.HandleFunc("GET /api/tasks/{id}/members", httpx.Handle(authHandler.Authenticated(sharing.Members, false)))
 	mux.HandleFunc("POST /api/tasks/{id}/members", httpx.Handle(authHandler.Authenticated(sharing.Add, false)))
 	mux.HandleFunc("DELETE /api/tasks/{id}/members/{memberID}", httpx.Handle(authHandler.Authenticated(sharing.Remove, false)))
@@ -76,6 +77,8 @@ func NewHandler(db *pgxpool.Pool, notifier *notifications.Service) http.Handler 
 
 	mux.HandleFunc("POST /api/auth/login", httpx.Handle(authHandler.Login))
 	mux.HandleFunc("POST /api/auth/register", httpx.Handle(authHandler.Register))
+	mux.HandleFunc("PUT /api/auth/avatar", httpx.Handle(authHandler.Authenticated(authHandler.SaveAvatar, false)))
+	mux.HandleFunc("GET /api/users/{id}/avatar", httpx.Handle(authHandler.Authenticated(authHandler.Avatar, false)))
 	mux.HandleFunc("GET /api/auth/me", httpx.Handle(authHandler.Authenticated(authHandler.Me, false)))
 	mux.HandleFunc("POST /api/auth/logout", httpx.Handle(authHandler.Authenticated(authHandler.Logout, false)))
 	mux.HandleFunc("POST /api/auth/password", httpx.Handle(authHandler.Authenticated(authHandler.ChangePassword, false)))

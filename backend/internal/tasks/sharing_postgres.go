@@ -110,7 +110,7 @@ func (repo *postgresSharingTransaction) LockOwner(ctx context.Context, userID, t
 
 func (repo *postgresSharingTransaction) ListMembers(ctx context.Context, taskID int64) ([]Member, error) {
 	rows, err := repo.tx.Query(ctx, `
- SELECT u.id,u.login,u.name
+ SELECT u.id,u.login,u.name,u.avatar IS NOT NULL
  FROM task_members m
  JOIN users u ON u.id=m.user_id
  WHERE m.task_id=$1
@@ -122,7 +122,7 @@ func (repo *postgresSharingTransaction) ListMembers(ctx context.Context, taskID 
 	members := []Member{}
 	for rows.Next() {
 		var member Member
-		if err := rows.Scan(&member.ID, &member.Login, &member.Name); err != nil {
+		if err := rows.Scan(&member.ID, &member.Login, &member.Name, &member.HasAvatar); err != nil {
 			return nil, err
 		}
 		members = append(members, member)
@@ -144,4 +144,21 @@ func (repo *postgresSharingTransaction) AddMember(ctx context.Context, taskID, m
 func (repo *postgresSharingTransaction) RemoveMember(ctx context.Context, taskID, memberID int64) error {
 	_, err := repo.tx.Exec(ctx, `DELETE FROM task_members WHERE task_id=$1 AND user_id=$2`, taskID, memberID)
 	return err
+}
+
+func (repo *postgresSharingTransaction) ListCandidates(ctx context.Context, ownerID int64) ([]Member, error) {
+	rows, err := repo.tx.Query(ctx, `SELECT id,login,name,avatar IS NOT NULL FROM users WHERE NOT disabled AND id<>$1 ORDER BY lower(name),lower(login),id`, ownerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	users := []Member{}
+	for rows.Next() {
+		var user Member
+		if err := rows.Scan(&user.ID, &user.Login, &user.Name, &user.HasAvatar); err != nil {
+			return nil, err
+		}
+		users = append(users, user)
+	}
+	return users, rows.Err()
 }

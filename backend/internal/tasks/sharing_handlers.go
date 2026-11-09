@@ -61,3 +61,15 @@ func (handler *SharingHandler) Remove(w http.ResponseWriter, r *http.Request) er
 	}
 	return httpx.Respond(w, http.StatusOK, map[string]bool{"ok": true})
 }
+
+func (handler *SharingHandler) Candidates(w http.ResponseWriter, r *http.Request) error {
+	id, err := httpx.PathID(r)
+	if err != nil {
+		return err
+	}
+	users, err := handler.Service.Candidates(r.Context(), auth.UserID(r.Context()), id)
+	if err != nil {
+		return err
+	}
+	return httpx.Respond(w, http.StatusOK, users)
+}
