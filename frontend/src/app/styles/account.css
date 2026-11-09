@@ -520,3 +520,10 @@
 .avatar-settings .hint {
   margin-top: 8px;
 }
+
+.account-button .user-avatar {
+  width: 30px;
+  height: 30px;
+  flex-basis: 30px;
+  font-size: 14px;
+}

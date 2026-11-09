@@ -48,7 +48,7 @@ func (repo *PostgresRepository) IncrementAttempts(ctx context.Context, scopeHash
 func (repo *postgresTransaction) FindCredentials(ctx context.Context, login string) (Credentials, error) {
 	var credentials Credentials
 	user := &credentials.User
-	err := repo.tx.QueryRow(ctx, `SELECT id,login,name,role,disabled,created_at,password_hash FROM users WHERE lower(login)=$1 FOR SHARE`, login).Scan(&user.ID, &user.Login, &user.Name, &user.Role, &user.Disabled, &user.CreatedAt, &credentials.PasswordHash)
+	err := repo.tx.QueryRow(ctx, `SELECT id,login,name,role,disabled,created_at,password_hash,avatar IS NOT NULL FROM users WHERE lower(login)=$1 FOR SHARE`, login).Scan(&user.ID, &user.Login, &user.Name, &user.Role, &user.Disabled, &user.CreatedAt, &credentials.PasswordHash, &user.HasAvatar)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return credentials, domain.ErrNotFound
 	}

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import TasksPage from '../features/tasks/TasksPage';
 import { AdminPanel } from '../features/admin/AdminPanel';
 import { Login } from '../features/auth/LoginPage';
+import { UserAvatar } from '../shared/ui/UserAvatar';
 import { UserSettings } from '../features/auth/UserSettings';
 import { api, ApiError } from '../shared/api/client';
 import type { User } from '../shared/types';
@@ -11,6 +12,7 @@ export default function AuthenticatedApp() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [settings, setSettings] = useState(false);
+  const [avatarRevision, setAvatarRevision] = useState(0);
   const [loggingOut, setLoggingOut] = useState(false);
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
@@ -74,9 +76,10 @@ export default function AuthenticatedApp() {
         onClick={() => setSettings(true)}
         aria-label={`Настройки аккаунта: ${user.name}`}
       >
-        <span className="avatar" aria-hidden="true">
-          {user.name.slice(0, 1)}
-        </span>
+        <UserAvatar
+          name={user.name}
+          src={user.has_avatar ? `/api/users/${user.id}/avatar?v=${avatarRevision}` : undefined}
+        />
         <span>{user.name}</span>
       </button>
       <button className="logout-button" disabled={loggingOut} onClick={() => void logout()}>
@@ -100,7 +103,14 @@ export default function AuthenticatedApp() {
         <TasksPage key={user.id} account={account} />
       )}
       {settings && (
-        <UserSettings user={user} onUserChange={setUser} onClose={() => setSettings(false)} />
+        <UserSettings
+          user={user}
+          onUserChange={(updated) => {
+            setUser(updated);
+            setAvatarRevision((previous) => previous + 1);
+          }}
+          onClose={() => setSettings(false)}
+        />
       )}
     </>
   );
