@@ -1164,6 +1164,7 @@ footer {
 }
 .sharing-candidate-list {
   display: grid;
+  align-content: start;
   gap: 4px;
   max-height: 240px;
   overflow-y: auto;
@@ -1176,6 +1177,7 @@ footer {
 }
 .sharing-candidate-list .sharing-candidate {
   display: flex;
+  flex-direction: row;
   align-items: center;
   gap: 12px;
   margin: 0;
