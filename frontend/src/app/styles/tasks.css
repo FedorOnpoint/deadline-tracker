@@ -668,8 +668,8 @@ select.status-picker::picker-icon {
   display: flex;
   align-items: center;
   gap: 7px;
-  color: var(--text);
-  background: transparent;
+  color: var(--status-text, var(--text));
+  background: var(--status-color, transparent);
   border: 1px solid transparent;
   border-radius: var(--radius-small);
   padding: 6px 9px;
@@ -917,4 +917,149 @@ footer {
   justify-content: space-between;
   gap: 12px;
   margin-block: 8px;
+}
+
+.shared-tasks-header {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.shared-tasks-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.shared-tasks h1 {
+  font-size: 28px;
+  line-height: 1.25;
+  letter-spacing: -0.4px;
+}
+
+.shared-tasks-count {
+  color: var(--muted);
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+}
+
+.shared-tasks-header p {
+  max-width: 64ch;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.shared-tasks .task-list {
+  gap: 16px;
+}
+
+.shared-tasks .task-card {
+  padding: 24px;
+}
+
+.shared-tasks .card-top {
+  margin-bottom: 20px;
+}
+
+.shared-tasks .card-kicker {
+  flex: 1;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.shared-card-byline,
+.shared-card-owner {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.shared-card-byline {
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+
+.shared-card-owner {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.shared-owner-avatar {
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--surface-raised);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.shared-card-section {
+  padding-left: 12px;
+  border-left: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.shared-tasks .card-title .field-icon {
+  color: var(--muted);
+}
+
+.shared-tasks .status-field dd {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.shared-tasks .status-age {
+  order: 1;
+  margin: 0;
+}
+
+.shared-tasks .status-badge {
+  background: color-mix(in srgb, var(--status-color) 12%, var(--surface));
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--status-color) 30%, var(--border));
+  padding: 8px 12px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.shared-tasks select.status-picker {
+  width: max-content;
+  min-width: min(176px, 100%);
+  max-width: 100%;
+}
+
+.shared-tasks select.status-picker:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  text-decoration: none;
+}
+
+.shared-tasks .card-deadlines .urgency {
+  gap: 8px;
+  padding: 4px 0;
+  background: transparent;
+  font-size: 13px;
+}
+
+@media (max-width: 600px) {
+  .shared-tasks h1 {
+    font-size: 24px;
+  }
+
+  .shared-tasks .task-card {
+    padding: 20px 16px;
+  }
+
+  .shared-tasks .card-top {
+    align-items: flex-start;
+  }
 }

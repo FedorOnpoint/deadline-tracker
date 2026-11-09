@@ -440,3 +440,38 @@
 .telegram-settings form {
   margin-top: 16px;
 }
+
+.telegram-connect-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.telegram-open-bot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-control);
+  background: var(--accent);
+  color: var(--primary-text, #13291f);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+.telegram-open-bot:hover {
+  background: var(--primary-hover, #b1ecd3);
+}
+
+.telegram-open-bot svg {
+  flex-shrink: 0;
+}
+
+.telegram-connect-hint {
+  margin-top: 12px;
+}

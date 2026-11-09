@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import type { Catalog } from '../../shared/types';
 
 type WorkStatusBadgeProps = {
@@ -22,7 +23,10 @@ function textColor(background: string) {
 
 export function WorkStatusBadge({ status, compact = false, selection }: WorkStatusBadgeProps) {
   const color = status?.color || '#b4bfcb';
-  const style = { backgroundColor: color, color: textColor(color) };
+  const style: CSSProperties & { '--status-color': string; '--status-text': string } = {
+    '--status-color': color,
+    '--status-text': textColor(color),
+  };
   if (selection)
     return (
       <select

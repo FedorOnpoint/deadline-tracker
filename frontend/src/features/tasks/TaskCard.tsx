@@ -1,5 +1,5 @@
 import { usePreferences } from '../../shared/preferences';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { CardCanvas, type CanvasEditor } from '../card-builder/CardCanvas';
 import { FieldIcon } from '../card-builder/FieldIcon';
 import { WorkStatusBadge } from '../catalog/WorkStatusBadge';
@@ -33,6 +33,7 @@ export function TaskCard({
   onDelete,
   onPatch,
   canvasEditor,
+  byline,
 }: {
   task: Task;
   catalog: Catalog[];
@@ -44,6 +45,7 @@ export function TaskCard({
   onDelete?: () => void;
   onPatch: (data: Partial<Pick<Task, 'completed' | 'status_id'>>) => Promise<void>;
   canvasEditor?: CanvasEditor;
+  byline?: ReactNode;
 }) {
   const { preferences } = usePreferences();
   const [expanded, setExpanded] = useState(false);
@@ -163,6 +165,7 @@ export function TaskCard({
           <div className="card-top">
             <div className="card-kicker">
               <span className="record-id">{task.id ? `#${task.id}` : 'Новая карточка'}</span>
+              {byline}
             </div>
             <div className="card-badges">
               <button

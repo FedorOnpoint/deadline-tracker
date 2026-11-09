@@ -35,17 +35,42 @@ export function TelegramSettings() {
               Отключить Telegram
             </button>
           ) : (
-            <button type="button" disabled={busy} onClick={() => void connect()}>
-              {connectLabel}
-            </button>
+            <div className="telegram-connect-actions">
+              {link && (
+                <a
+                  className="telegram-open-bot"
+                  href={link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Открыть бота в Telegram
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    aria-hidden="true"
+                  >
+                    <path d="M14 3h7v7M10 14 21 3M21 14v7H3V3h7" />
+                  </svg>
+                </a>
+              )}
+              <button
+                type="button"
+                className={link ? 'reset' : 'primary'}
+                disabled={busy}
+                onClick={() => void connect()}
+              >
+                {connectLabel}
+              </button>
+            </div>
           )}
           {link && (
-            <p role="status">
-              <a href={link} target="_blank" rel="noopener noreferrer">
-                Открыть бота в Telegram
-              </a>
-              . Нажмите «Запустить» в личном чате. Ссылка действует 10 минут; подключение появится
-              здесь автоматически.
+            <p className="hint telegram-connect-hint" role="status">
+              Откройте бота кнопкой выше и нажмите «Запустить» в чате Telegram. Затем вернитесь сюда
+              — статус подключения обновится автоматически. Ссылка действует 10 минут.
             </p>
           )}
           <form

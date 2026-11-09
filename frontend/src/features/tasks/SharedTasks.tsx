@@ -25,31 +25,53 @@ export function SharedTasks({
     content = (
       <div className="task-list">
         {entries.map((entry) => (
-          <div key={entry.task.id}>
-            <p className="hint">
-              {entry.owner_name} · {entry.section.label}
-            </p>
-            <TaskCard
-              task={entry.task}
-              catalog={entry.catalog}
-              fields={entry.task.fields ?? entry.section.fields}
-              now={now}
-              busy={busyIDs.has(entry.task.id)}
-              onEdit={() => onEdit(entry.task)}
-              onPatch={(changes) => onPatch(entry.task.id, changes)}
-            />
-          </div>
+          <TaskCard
+            key={entry.task.id}
+            task={entry.task}
+            catalog={entry.catalog}
+            fields={entry.task.fields ?? entry.section.fields}
+            now={now}
+            busy={busyIDs.has(entry.task.id)}
+            byline={
+              <div className="shared-card-byline">
+                <span className="shared-card-owner">
+                  <span className="shared-owner-avatar" aria-hidden="true">
+                    {entry.owner_name.slice(0, 1).toLocaleUpperCase('ru-RU')}
+                  </span>
+                  <span>
+                    <span className="sr-only">Владелец: </span>
+                    {entry.owner_name}
+                  </span>
+                </span>
+                <span className="shared-card-section">
+                  <span className="sr-only">Раздел: </span>
+                  {entry.section.label}
+                </span>
+              </div>
+            }
+            onEdit={() => onEdit(entry.task)}
+            onPatch={(changes) => onPatch(entry.task.id, changes)}
+          />
         ))}
       </div>
     );
   return (
-    <section aria-labelledby="records">
-      <h1 id="records" tabIndex={-1}>
-        Совместные карточки
-      </h1>
-      <p className="muted">
-        Карточки, к которым вам открыли доступ. Удалять их и управлять участниками может владелец.
-      </p>
+    <section className="shared-tasks" aria-labelledby="records">
+      <header className="shared-tasks-header">
+        <div className="shared-tasks-heading">
+          <h1 id="records" tabIndex={-1}>
+            Совместные карточки
+          </h1>
+          {!loading && (
+            <span className="shared-tasks-count" aria-label={`Карточек: ${entries.length}`}>
+              {entries.length}
+            </span>
+          )}
+        </div>
+        <p className="muted">
+          Редактируйте вместе. Доступом и удалением управляет владелец карточки.
+        </p>
+      </header>
       {content}
     </section>
   );
