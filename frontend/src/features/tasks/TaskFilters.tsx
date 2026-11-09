@@ -173,7 +173,15 @@ export function TaskFilters({
               Срочность
               <select value={filters.urgency} onChange={(e) => filter('urgency', e.target.value)}>
                 <option value="">Любая срочность</option>
-                {Object.entries(urgencyLabels).map(([key, value]) => (
+                {Object.entries(
+                  preferences.deadlineCalendar === 'ru'
+                    ? {
+                        ...urgencyLabels,
+                        urgent: 'Меньше 7 рабочих дней',
+                        soon: '7–14 рабочих дней',
+                      }
+                    : urgencyLabels,
+                ).map(([key, value]) => (
                   <option key={key} value={key}>
                     {value}
                   </option>

@@ -1,3 +1,4 @@
+import type { DeadlineCalendar } from './types';
 import { createContext, useContext, useLayoutEffect, useState, type ReactNode } from 'react';
 
 export const sortOptions = [
@@ -12,6 +13,7 @@ type Preferences = {
   defaultGrouped: boolean;
   showCompleted: boolean;
   showStats: boolean;
+  deadlineCalendar: DeadlineCalendar;
 };
 
 const storageKey = 'deadline-tracker:appearance';
@@ -22,6 +24,7 @@ const defaults: Preferences = {
   defaultGrouped: false,
   showCompleted: true,
   showStats: true,
+  deadlineCalendar: 'calendar',
 };
 
 function readPreferences(): { preferences: Preferences; error: string } {
@@ -54,6 +57,8 @@ function readPreferences(): { preferences: Preferences; error: string } {
           'showCompleted' in value && typeof value.showCompleted === 'boolean'
             ? value.showCompleted
             : defaults.showCompleted,
+        deadlineCalendar:
+          'deadlineCalendar' in value && value.deadlineCalendar === 'ru' ? 'ru' : 'calendar',
         showStats:
           'showStats' in value && typeof value.showStats === 'boolean'
             ? value.showStats

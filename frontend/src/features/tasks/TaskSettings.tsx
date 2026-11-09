@@ -1,3 +1,4 @@
+import { russianCalendarPeriod } from './russianCalendar';
 import { useState } from 'react';
 import { sortOptions, usePreferences } from '../../shared/preferences';
 import type { CatalogKind, SectionDefinition } from '../../shared/types';
@@ -30,6 +31,28 @@ export function TaskSettings({
           Параметры интерфейса применяются сразу и сохраняются в этом браузере
         </p>
         <AppearanceSettings />
+        <section className="settings-section" aria-labelledby="deadline-settings-heading">
+          <h3 id="deadline-settings-heading">Сроки</h3>
+          <label>
+            Подсчёт дней до срока
+            <select
+              aria-label="Подсчёт дней до срока"
+              value={preferences.deadlineCalendar}
+              onChange={(event) =>
+                updatePreferences({
+                  deadlineCalendar: event.target.value === 'ru' ? 'ru' : 'calendar',
+                })
+              }
+            >
+              <option value="calendar">Календарные дни</option>
+              <option value="ru">Рабочие дни — календарь РФ</option>
+            </select>
+          </label>
+          <p className="hint">
+            Федеральная пятидневка с праздниками и переносами на {russianCalendarPeriod} годы. Дата
+            дедлайна не переносится. Для других лет показываем календарные дни.
+          </p>
+        </section>
         <section className="settings-section" aria-labelledby="list-settings-heading">
           <h3 id="list-settings-heading">Список карточек</h3>
           <label className="check">

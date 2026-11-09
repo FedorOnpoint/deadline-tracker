@@ -1,11 +1,27 @@
-import type { Task } from '../../shared/types';
+import { workingDaysBetween } from './russianCalendar';
+import type { DeadlineCalendar, Task } from '../../shared/types';
 
 export type Urgency = 'done' | 'overdue' | 'urgent' | 'soon' | 'neutral';
 export const DAY = 24 * 60 * 60 * 1000;
-export function urgency(task: Pick<Task, 'deadline' | 'completed'>, now: number): Urgency {
+type DatedTask = Pick<Task, 'deadline' | 'completed' | 'timezone'>;
+
+export function urgency(
+  task: DatedTask,
+  now: number,
+  calendar: DeadlineCalendar = 'calendar',
+): Urgency {
   if (task.completed) return 'done';
   const left = new Date(task.deadline).getTime() - now;
   if (left <= 0) return 'overdue';
+  const days =
+    calendar === 'ru'
+      ? workingDaysBetween(now, new Date(task.deadline).getTime(), task.timezone || timezone)
+      : null;
+  if (days !== null) {
+    if (days < 7) return 'urgent';
+    if (days <= 14) return 'soon';
+    return 'neutral';
+  }
   if (left < 7 * DAY) return 'urgent';
   if (left <= 14 * DAY) return 'soon';
   return 'neutral';
@@ -18,12 +34,24 @@ export const urgencyLabels: Record<Urgency, string> = {
   neutral: 'В запасе',
 };
 export function remaining(
-  task: Pick<Task, 'deadline' | 'completed'>,
+  task: DatedTask,
   now: number,
   daysOnly = false,
+  calendar: DeadlineCalendar = 'calendar',
 ): string {
   if (task.completed) return 'Работа завершена';
   const delta = new Date(task.deadline).getTime() - now;
+  if (calendar === 'ru') {
+    const days = workingDaysBetween(
+      now,
+      new Date(task.deadline).getTime(),
+      task.timezone || timezone,
+    );
+    if (days !== null)
+      return delta <= 0 ? `Просрочено на ${Math.abs(days)} раб. д.` : `Осталось ${days} раб. д.`;
+    const count = Math.max(1, Math.ceil(Math.abs(delta) / DAY));
+    return delta <= 0 ? `Просрочено на ${count} кал. д.` : `Осталось ${count} кал. д.`;
+  }
   if (daysOnly) {
     if (delta <= 0) return `Просрочено на ${Math.max(1, Math.ceil(Math.abs(delta) / DAY))} д.`;
     const days = Math.ceil(delta / DAY);
@@ -78,7 +106,13 @@ export const emptyFilters: Filters = {
   month: '',
   urgency: '',
 };
-export function selectTasks(tasks: Task[], filters: Filters, sort: string, now: number) {
+export function selectTasks(
+  tasks: Task[],
+  filters: Filters,
+  sort: string,
+  now: number,
+  calendar: DeadlineCalendar = 'calendar',
+) {
   const keywords = filters.query.trim().toLocaleLowerCase('ru-RU').split(/\s+/).filter(Boolean);
   return tasks
     .filter((t) => {
@@ -112,7 +146,7 @@ export function selectTasks(tasks: Task[], filters: Filters, sort: string, now: 
         return false;
       if (filters.completion && t.completed !== (filters.completion === 'done')) return false;
       if (filters.month && monthKey(t) !== filters.month) return false;
-      if (filters.urgency && urgency(t, now) !== filters.urgency) return false;
+      if (filters.urgency && urgency(t, now, calendar) !== filters.urgency) return false;
       return true;
     })
     .sort((a, b) => {

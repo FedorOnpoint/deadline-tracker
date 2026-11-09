@@ -1,3 +1,4 @@
+export type DeadlineCalendar = 'calendar' | 'ru';
 export type CatalogKind = 'platform' | 'specialty' | 'status';
 export type TaskSection = string;
 export type CardFieldLayout = {

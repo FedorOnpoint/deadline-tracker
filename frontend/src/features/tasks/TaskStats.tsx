@@ -1,3 +1,4 @@
+import { usePreferences } from '../../shared/preferences';
 import type { Task } from '../../shared/types';
 import { urgency } from './model';
 
@@ -18,17 +19,21 @@ export function TaskStats({
   selectedUrgency,
   onSelect,
 }: TaskStatsProps) {
+  const { preferences } = usePreferences();
   const stats = [
     { label: 'Всего записей', value: tasks.length, key: '', className: '' },
     {
       label: 'Просрочено',
-      value: tasks.filter((task) => urgency(task, now) === 'overdue').length,
+      value: tasks.filter((task) => urgency(task, now, preferences.deadlineCalendar) === 'overdue')
+        .length,
       key: 'overdue',
       className: 'red',
     },
     {
-      label: 'На ближайшую неделю',
-      value: tasks.filter((task) => urgency(task, now) === 'urgent').length,
+      label:
+        preferences.deadlineCalendar === 'ru' ? 'Меньше 7 рабочих дней' : 'На ближайшую неделю',
+      value: tasks.filter((task) => urgency(task, now, preferences.deadlineCalendar) === 'urgent')
+        .length,
       key: 'urgent',
       className: 'orange',
     },

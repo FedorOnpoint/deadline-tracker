@@ -1,3 +1,4 @@
+import { usePreferences } from '../../shared/preferences';
 import { useState } from 'react';
 import { CardCanvas, type CanvasEditor } from '../card-builder/CardCanvas';
 import { FieldIcon } from '../card-builder/FieldIcon';
@@ -43,6 +44,7 @@ export function TaskCard({
   onPatch: (data: Partial<Pick<Task, 'completed' | 'status_id'>>) => Promise<void>;
   canvasEditor?: CanvasEditor;
 }) {
+  const { preferences } = usePreferences();
   const [expanded, setExpanded] = useState(false);
   const open = preview || expanded;
   const status = catalog.find((entry) => entry.id === task.status_id);
@@ -52,7 +54,9 @@ export function TaskCard({
     .map((field) => ({ field, deadline: fieldDeadline(task, field) }))
     .filter(({ deadline }) => Boolean(deadline));
   const deadline = earliestDeadline(task, fields);
-  const level = deadline ? urgency({ ...task, deadline }, now) : 'neutral';
+  const level = deadline
+    ? urgency({ ...task, deadline }, now, preferences.deadlineCalendar)
+    : 'neutral';
   const hasStatus = fields.some(
     (field) => field.id === 'status_id' && field.visibility !== 'hidden',
   );
@@ -194,12 +198,17 @@ export function TaskCard({
           {dates.length > 0 && (
             <div className="card-deadlines" aria-label="Сроки карточки">
               {dates.map(({ field, deadline }) => {
-                const dated = { deadline, completed: task.completed };
+                const dated = { deadline, completed: task.completed, timezone: task.timezone };
                 return (
-                  <span key={field.id} className={`urgency ${urgency(dated, now)}`}>
+                  <span
+                    key={field.id}
+                    className={`urgency ${urgency(dated, now, preferences.deadlineCalendar)}`}
+                  >
                     <span className="deadline-label">{field.label}</span>
                     <span aria-hidden="true">·</span>
-                    <span className="deadline-countdown">{remaining(dated, now, true)}</span>
+                    <span className="deadline-countdown">
+                      {remaining(dated, now, true, preferences.deadlineCalendar)}
+                    </span>
                   </span>
                 );
               })}

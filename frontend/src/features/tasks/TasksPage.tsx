@@ -101,8 +101,8 @@ export default function TasksPage({ account }: { account: ReactNode }) {
   }, [tasks, section]);
   const hasActivePlatform = sectionPlatforms.some((platform) => !platform.archived);
   const visible = useMemo(
-    () => selectTasks(sectionTasks, filters, sort, now),
-    [sectionTasks, filters, sort, now],
+    () => selectTasks(sectionTasks, filters, sort, now, preferences.deadlineCalendar),
+    [sectionTasks, filters, sort, now, preferences.deadlineCalendar],
   );
   const months = [...new Set(sectionTasks.map(monthKey))].sort();
   const sectionDefinition = sections.find((entry) => entry.key === section);
