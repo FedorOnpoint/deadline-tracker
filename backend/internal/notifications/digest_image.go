@@ -13,11 +13,10 @@ import (
 	"golang.org/x/image/font"
 	"golang.org/x/image/font/gofont/gobold"
 	"golang.org/x/image/font/gofont/goregular"
-	"golang.org/x/image/font/opentype"
 	"golang.org/x/image/math/fixed"
 )
 
-const digestPreviewLimit = 3
+const digestTasksPerPage = 3
 
 type digestGroup struct {
 	title  string
@@ -47,35 +46,68 @@ func groupDigest(tasks []digestTask, now time.Time) []digestGroup {
 	return groups
 }
 
-func renderDigest(tasks []digestTask, now time.Time) ([]byte, error) {
-	regular, err := opentype.Parse(goregular.TTF)
-	if err != nil {
-		return nil, err
+func paginateDigest(groups []digestGroup) [][]digestGroup {
+	pages := [][]digestGroup{}
+	var page []digestGroup
+	remaining := digestTasksPerPage
+	for _, group := range groups {
+		for start := 0; start < len(group.tasks); {
+			count := min(remaining, len(group.tasks)-start)
+			part := group
+			part.tasks = group.tasks[start : start+count]
+			page = append(page, part)
+			start += count
+			remaining -= count
+			if remaining == 0 {
+				pages = append(pages, page)
+				page = nil
+				remaining = digestTasksPerPage
+			}
+		}
 	}
-	bold, err := opentype.Parse(gobold.TTF)
-	if err != nil {
-		return nil, err
+	if len(page) > 0 {
+		pages = append(pages, page)
 	}
-	body, err := opentype.NewFace(regular, &opentype.FaceOptions{Size: 28, DPI: 72, Hinting: font.HintingFull})
+	if len(pages) == 0 {
+		pages = append(pages, groups)
+	}
+	return pages
+}
+
+func renderDigestPages(tasks []digestTask, now time.Time) ([][]byte, error) {
+	groups := groupDigest(tasks, now)
+	pages := paginateDigest(groups)
+	images := make([][]byte, 0, len(pages))
+	for i, page := range pages {
+		photo, err := renderDigestPage(page, groups, now, i+1, len(pages))
+		if err != nil {
+			return nil, err
+		}
+		images = append(images, photo)
+	}
+	return images, nil
+}
+
+func renderDigestPage(groups, totals []digestGroup, now time.Time, page, pageCount int) ([]byte, error) {
+	body, err := notificationFace(goregular.TTF, 28)
 	if err != nil {
 		return nil, err
 	}
 	defer body.Close()
-	title, err := opentype.NewFace(bold, &opentype.FaceOptions{Size: 32, DPI: 72, Hinting: font.HintingFull})
+	title, err := notificationFace(gobold.TTF, 32)
 	if err != nil {
 		return nil, err
 	}
 	defer title.Close()
-	heading, err := opentype.NewFace(bold, &opentype.FaceOptions{Size: 46, DPI: 72, Hinting: font.HintingFull})
+	heading, err := notificationFace(gobold.TTF, 46)
 	if err != nil {
 		return nil, err
 	}
 	defer heading.Close()
-	groups := groupDigest(tasks, now)
-	height := 332
+	height := 272
 	for _, group := range groups {
-		height += 88 + min(len(group.tasks), digestPreviewLimit)*152
-		if len(group.tasks) == 0 || len(group.tasks) > digestPreviewLimit {
+		height += 64 + len(group.tasks)*152
+		if len(group.tasks) == 0 {
 			height += 44
 		}
 	}
@@ -89,37 +121,33 @@ func renderDigest(tasks []digestTask, now time.Time) ([]byte, error) {
 		drawer := font.Drawer{Dst: canvas, Src: image.NewUniform(tint), Face: face, Dot: fixed.P(x, y)}
 		drawer.DrawString(value)
 	}
-	write(body, 48, 64, "DEADLINE TRACKER", muted)
-	write(heading, 48, 132, "Сводка задач", text)
-	write(body, 48, 180, now.Format("02.01.2006")+" · "+now.Location().String(), muted)
+	write(body, 48, 48, fmt.Sprintf("DEADLINE TRACKER · %d/%d", page, pageCount), muted)
+	write(heading, 48, 108, "Сводка задач", text)
+	write(body, 48, 152, now.Format("02.01.2006")+" · "+now.Location().String(), muted)
 	x := 48
-	for _, group := range groups {
-		write(heading, x, 252, fmt.Sprint(len(group.tasks)), group.accent)
-		write(body, x, 290, group.title, muted)
+	for _, group := range totals {
+		write(heading, x, 216, fmt.Sprint(len(group.tasks)), group.accent)
+		write(body, x, 254, group.title, muted)
 		x += 300
 	}
-	y := 326
+	y := 266
 	for _, group := range groups {
-		write(title, 48, y+44, group.title, group.accent)
-		y += 72
-		for _, task := range group.tasks[:min(len(group.tasks), digestPreviewLimit)] {
+		write(title, 48, y+36, group.title, group.accent)
+		y += 48
+		for _, task := range group.tasks {
 			draw.Draw(canvas, image.Rect(48, y, 952, y+136), image.NewUniform(surface), image.Point{}, draw.Src)
 			draw.Draw(canvas, image.Rect(48, y, 52, y+136), image.NewUniform(group.accent), image.Point{}, draw.Src)
 			topic := strings.Join(strings.Fields(task.Topic), " ")
 			if topic == "" {
 				topic = "Без названия"
 			}
-			write(title, 76, y+44, fitDigestText(title, topic, 848), text)
+			write(title, 76, y+44, fitImageText(title, topic, 848), text)
 			write(body, 76, y+82, fmt.Sprintf("#%d · Срок: %s", task.ID, task.Deadline.In(now.Location()).Format("02.01 · 15:04")), muted)
-			write(body, 76, y+118, fitDigestText(body, "Статус: "+strings.Join(strings.Fields(task.Status), " "), 848), muted)
+			write(body, 76, y+118, fitImageText(body, "Статус: "+strings.Join(strings.Fields(task.Status), " "), 848), muted)
 			y += 152
 		}
 		if len(group.tasks) == 0 {
 			write(body, 48, y+28, "Нет задач", muted)
-			y += 44
-		}
-		if len(group.tasks) > digestPreviewLimit {
-			write(body, 48, y+28, fmt.Sprintf("Ещё %d — в приложении", len(group.tasks)-digestPreviewLimit), muted)
 			y += 44
 		}
 		y += 16
@@ -129,22 +157,4 @@ func renderDigest(tasks []digestTask, now time.Time) ([]byte, error) {
 		return nil, err
 	}
 	return output.Bytes(), nil
-}
-
-func fitDigestText(face font.Face, text string, width int) string {
-	if font.MeasureString(face, text).Ceil() <= width {
-		return text
-	}
-	runes := []rune(text)
-	low, high := 0, len(runes)
-	for low < high {
-		middle := (low + high + 1) / 2
-		candidate := string(runes[:middle]) + "…"
-		if font.MeasureString(face, candidate).Ceil() <= width {
-			low = middle
-		} else {
-			high = middle - 1
-		}
-	}
-	return string(runes[:low]) + "…"
 }

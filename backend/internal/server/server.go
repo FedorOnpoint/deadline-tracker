@@ -61,7 +61,7 @@ func Run() {
 		Handler:           NewHandler(db, notifier),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
-		WriteTimeout:      20 * time.Second,
+		WriteTimeout:      180 * time.Second,
 		IdleTimeout:       60 * time.Second,
 	}
 	if os.Getenv("VERCEL") != "1" {

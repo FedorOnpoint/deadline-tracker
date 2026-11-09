@@ -7,14 +7,19 @@ export class ApiError extends Error {
   }
 }
 
-export async function api<T>(path: string, method = 'GET', body?: unknown): Promise<T> {
+export async function api<T>(
+  path: string,
+  method = 'GET',
+  body?: unknown,
+  timeoutMs = 20000,
+): Promise<T> {
   let response: Response;
   try {
     response = await fetch(`/api${path}`, {
       method,
       headers: { 'Content-Type': 'application/json' },
       body: body === undefined ? undefined : JSON.stringify(body),
-      signal: AbortSignal.timeout(20000),
+      signal: AbortSignal.timeout(timeoutMs),
     });
   } catch {
     throw new Error('Нет связи с сервером. Проверьте подключение и повторите попытку.');

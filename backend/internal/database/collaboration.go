@@ -41,6 +41,7 @@ func initializeCollaboration(ctx context.Context, tx pgx.Tx) error {
    attempts integer NOT NULL DEFAULT 0,
    delivered_at timestamptz
  );
+ ALTER TABLE telegram_outbox ADD COLUMN IF NOT EXISTS payload jsonb;
  CREATE INDEX IF NOT EXISTS telegram_outbox_pending ON telegram_outbox(next_attempt_at,id) WHERE delivered_at IS NULL;
  CREATE INDEX IF NOT EXISTS telegram_outbox_task_recipient ON telegram_outbox(task_id,user_id,id) WHERE delivered_at IS NULL;
  CREATE TABLE IF NOT EXISTS telegram_poll_state (

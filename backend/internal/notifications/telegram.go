@@ -62,7 +62,7 @@ func (bot *Telegram) execute(request *http.Request, method string, output any) e
 	return nil
 }
 
-func (bot *Telegram) SendDigest(ctx context.Context, chatID int64, photo []byte, caption, appURL string) error {
+func (bot *Telegram) SendPhoto(ctx context.Context, chatID int64, photo []byte, caption, appURL string) error {
 	var body bytes.Buffer
 	writer := multipart.NewWriter(&body)
 	fields := map[string]string{"chat_id": strconv.FormatInt(chatID, 10), "caption": caption}
@@ -92,6 +92,29 @@ func (bot *Telegram) SendDigest(ctx context.Context, chatID int64, photo []byte,
 	}
 	request.Header.Set("Content-Type", writer.FormDataContentType())
 	return bot.execute(request, "sendPhoto", nil)
+}
+
+func (bot *Telegram) SendDigestPages(ctx context.Context, chatID int64, photos [][]byte, caption, appURL string) error {
+	for i, photo := range photos {
+		// Separate messages keep each page readable in the chat. Space them to avoid Telegram's per-chat limit.
+		if i > 0 {
+			timer := time.NewTimer(time.Second)
+			select {
+			case <-ctx.Done():
+				timer.Stop()
+				return ctx.Err()
+			case <-timer.C:
+			}
+		}
+		pageCaption := caption
+		if len(photos) > 1 {
+			pageCaption += fmt.Sprintf("\nСтраница %d/%d", i+1, len(photos))
+		}
+		if err := bot.SendPhoto(ctx, chatID, photo, pageCaption, appURL); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (bot *Telegram) Send(ctx context.Context, chatID int64, text string) error {

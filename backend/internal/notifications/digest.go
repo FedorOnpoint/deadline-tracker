@@ -112,13 +112,13 @@ func (service *Service) deliverDigest(ctx context.Context, userID int64, manual 
 	if err := rows.Err(); err != nil {
 		return err
 	}
-	photo, err := renderDigest(tasks, now)
+	photos, err := renderDigestPages(tasks, now)
 	if err != nil {
 		return err
 	}
 	groups := groupDigest(tasks, now)
 	caption := fmt.Sprintf("Сводка задач · %s\nПросроченные: %d · Сегодня: %d · Ближайшие 7 дней: %d", now.Format("02.01.2006"), len(groups[0].tasks), len(groups[1].tasks), len(groups[2].tasks))
-	if err := service.Telegram.SendDigest(ctx, chatID, photo, caption, service.AppURL); err != nil {
+	if err := service.Telegram.SendDigestPages(ctx, chatID, photos, caption, service.AppURL); err != nil {
 		return err
 	}
 	if manual {

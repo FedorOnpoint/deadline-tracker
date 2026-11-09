@@ -18,7 +18,7 @@ export const telegramApi = {
   settings: () => api<TelegramSettings>('/telegram'),
   connect: () => api<{ url: string }>('/telegram/connect', 'POST', {}),
   disconnect: () => api<TelegramSettings>('/telegram', 'DELETE'),
-  sendDigest: () => api<{ status: string }>('/telegram/digest', 'POST', {}),
+  sendDigest: () => api<{ status: string }>('/telegram/digest', 'POST', {}, 180000),
   save: (preferences: TelegramPreferences) =>
     api<TelegramSettings>('/telegram', 'PUT', preferences),
 };

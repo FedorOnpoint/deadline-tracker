@@ -2,6 +2,7 @@ package notifications
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"log/slog"
 	"time"
@@ -99,11 +100,12 @@ func (service *Service) deliverStatus(ctx context.Context, id int64) error {
 	}
 	var userID, expectedChat int64
 	var message string
+	var payload []byte
 	err = tx.QueryRow(ctx, `
- SELECT user_id,chat_id,message
+ SELECT user_id,chat_id,message,payload
  FROM telegram_outbox
  WHERE id=$1 AND delivered_at IS NULL AND next_attempt_at<=now()
- FOR UPDATE SKIP LOCKED`, id).Scan(&userID, &expectedChat, &message)
+ FOR UPDATE SKIP LOCKED`, id).Scan(&userID, &expectedChat, &message, &payload)
 	if err == pgx.ErrNoRows {
 		return nil
 	}
@@ -124,7 +126,7 @@ func (service *Service) deliverStatus(ctx context.Context, id int64) error {
 	if err == pgx.ErrNoRows {
 		_, err = tx.Exec(ctx, `UPDATE telegram_outbox SET delivered_at=now() WHERE id=$1`, id)
 	} else if err == nil {
-		deliveryErr := service.Telegram.Send(ctx, chatID, message)
+		deliveryErr := service.sendStatusChange(ctx, chatID, message, payload)
 		if deliveryErr != nil {
 			_, err = tx.Exec(ctx, `
  UPDATE telegram_outbox SET attempts=attempts+1,next_attempt_at=now()+make_interval(secs=>least(3600,30*power(2,least(attempts,7)))::integer)
@@ -143,6 +145,22 @@ func (service *Service) deliverStatus(ctx context.Context, id int64) error {
 		return err
 	}
 	return tx.Commit(ctx)
+}
+
+func (service *Service) sendStatusChange(ctx context.Context, chatID int64, message string, payload []byte) error {
+	// Entries queued before image notifications were added retain their original text.
+	if len(payload) == 0 {
+		return service.Telegram.Send(ctx, chatID, message)
+	}
+	var change statusChange
+	if err := json.Unmarshal(payload, &change); err != nil {
+		return err
+	}
+	photo, err := renderStatusChange(change)
+	if err != nil {
+		return err
+	}
+	return service.Telegram.SendPhoto(ctx, chatID, photo, message, service.AppURL)
 }
 
 func (service *Service) RunTelegram(ctx context.Context) {
