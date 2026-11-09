@@ -50,7 +50,7 @@ func formatDigestMessages(tasks []digestTask, now time.Time) []string {
 			if topic == "" {
 				topic = "Без названия"
 			}
-			block := fmt.Sprintf("\n\n<b>%s</b> · #%d\nСрок: %s\nСтатус: %s", topic, task.ID, task.Deadline.In(now.Location()).Format("02.01.2006, 15:04"), messageText(task.Status, 150))
+			block := fmt.Sprintf("\n\n<b>%s</b> · #%d\nСрок: %s <b>%s</b>\nСтатус: %s", topic, task.ID, deadlineMarker(task.Deadline, now), task.Deadline.In(now.Location()).Format("02.01.2006, 15:04"), messageText(task.Status, 150))
 			prefix := ""
 			if index == 0 {
 				prefix = section
@@ -77,6 +77,18 @@ func formatDigestMessages(tasks []digestTask, now time.Time) []string {
 		}
 	}
 	return messages
+}
+
+func deadlineMarker(deadline, now time.Time) string {
+	start := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	switch {
+	case deadline.Before(start):
+		return "🔴"
+	case deadline.Before(start.AddDate(0, 0, 1)):
+		return "🟠"
+	default:
+		return "🟢"
+	}
 }
 
 func formatStatusChange(change statusChange) string {
