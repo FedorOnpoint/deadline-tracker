@@ -72,10 +72,10 @@ func (repo *postgresTransaction) Insert(ctx context.Context, userID int64, task 
 	err = repo.tx.QueryRow(ctx, `
  INSERT INTO tasks(
    platform_id, specialty_id, status_id, deadline, email_date,
-   data, completed, completed_at, user_id, section
+   data, completed, completed_at, user_id, section, status_changed_at
  ) VALUES(
    $1, $2, $3, $4, NULLIF($5, '')::date,
-   $6, $7, CASE WHEN $7 THEN now() ELSE NULL END, $8, $9
+   $6, $7, CASE WHEN $7 THEN now() ELSE NULL END, $8, $9, CASE WHEN $3::bigint IS NOT NULL THEN now() ELSE NULL END
  ) RETURNING id`,
 		nullPlatform(task.PlatformID), task.SpecialtyID, task.StatusID, task.Deadline,
 		task.EmailDate, raw, task.Completed, userID, task.Section,
@@ -93,6 +93,11 @@ func (repo *postgresTransaction) Update(ctx context.Context, userID, id int64, t
    platform_id = $2,
    section = $11,
    specialty_id = $3,
+   status_changed_at = CASE
+     WHEN status_id IS NOT DISTINCT FROM $4::bigint THEN status_changed_at
+     WHEN $4::bigint IS NULL THEN NULL
+     ELSE now()
+   END,
    status_id = $4,
    deadline = $5,
    email_date = NULLIF($6, '')::date,

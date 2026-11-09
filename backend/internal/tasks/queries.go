@@ -14,6 +14,7 @@ const taskJSON = `data || jsonb_build_object(
  'section', section,
  'specialty_id', specialty_id,
  'status_id', status_id,
+ 'status_changed_at', status_changed_at,
  'deadline', deadline,
  'email_date', coalesce(email_date::text, ''),
  'completed', completed,

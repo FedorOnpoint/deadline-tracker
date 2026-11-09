@@ -642,6 +642,13 @@ select.status-picker {
 .status-field dd {
   margin-top: 8px;
 }
+.status-age {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
 select.status-picker:focus-visible,
 select.status-picker:open {
   outline: none;

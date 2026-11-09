@@ -48,6 +48,7 @@ export type Task = {
   platform_id: number;
   specialty_id: number | null;
   status_id: number | null;
+  status_changed_at?: string | null;
   deadline: string;
   email_date: string;
   topic: string;

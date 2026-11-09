@@ -61,6 +61,9 @@ func Initialize(ctx context.Context, db *pgxpool.Pool) error {
 	if err = initializeSectionHierarchy(ctx, tx); err != nil {
 		return err
 	}
+	if err = initializeStatusTimestamp(ctx, tx); err != nil {
+		return err
+	}
 	if err = initializeCatalogSettings(ctx, tx); err != nil {
 		return err
 	}

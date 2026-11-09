@@ -3,7 +3,7 @@ import { CardCanvas, type CanvasEditor } from '../card-builder/CardCanvas';
 import { FieldIcon } from '../card-builder/FieldIcon';
 import { WorkStatusBadge } from '../catalog/WorkStatusBadge';
 import { type CardField, type Catalog, type Task } from '../../shared/types';
-import { formatDate, remaining, timezone, urgency } from './model';
+import { DAY, formatDate, remaining, timezone, urgency } from './model';
 import {
   dateFields,
   displayFieldValue,
@@ -72,6 +72,13 @@ export function TaskCard({
             <span>{field.label}</span>
           </dt>
           <dd>
+            {!preview && task.status_id !== null && task.status_changed_at && (
+              <span className="status-age">
+                В статусе{' '}
+                {Math.max(0, Math.floor((now - new Date(task.status_changed_at).getTime()) / DAY))}{' '}
+                д.
+              </span>
+            )}
             {preview ? (
               <WorkStatusBadge status={status} />
             ) : (
