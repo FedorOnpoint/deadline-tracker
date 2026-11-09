@@ -148,7 +148,7 @@ func (service *Service) deliverStatus(ctx context.Context, id int64) error {
 }
 
 func (service *Service) sendStatusChange(ctx context.Context, chatID int64, message string, payload []byte) error {
-	// Entries queued before image notifications were added retain their original text.
+	// Older queued entries without structured data retain their original text.
 	if len(payload) == 0 {
 		return service.Telegram.Send(ctx, chatID, message)
 	}
@@ -156,11 +156,7 @@ func (service *Service) sendStatusChange(ctx context.Context, chatID int64, mess
 	if err := json.Unmarshal(payload, &change); err != nil {
 		return err
 	}
-	photo, err := renderStatusChange(change)
-	if err != nil {
-		return err
-	}
-	return service.Telegram.SendPhoto(ctx, chatID, photo, message, service.AppURL)
+	return service.Telegram.SendFormatted(ctx, chatID, []string{formatStatusChange(change)}, service.AppURL)
 }
 
 func (service *Service) RunTelegram(ctx context.Context) {

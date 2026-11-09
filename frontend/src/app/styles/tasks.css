@@ -955,6 +955,56 @@ footer {
   margin-block: 8px;
 }
 
+.task-sharing-content {
+  display: grid;
+  gap: 16px;
+  padding-top: 8px;
+}
+
+.task-sharing-content > .hint,
+.task-sharing-content > .notice,
+.task-sharing-content > .error,
+.task-sharing-content > .task-members {
+  margin: 0;
+}
+
+.task-sharing-content > .task-members:empty {
+  display: none;
+}
+
+.task-sharing-invite {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 12px;
+}
+
+.task-sharing-invite label {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.task-sharing-invite input,
+.task-sharing-invite button {
+  min-height: 40px;
+}
+
+.task-sharing-invite input:focus-visible {
+  outline-offset: -2px;
+  border-color: var(--accent);
+}
+
+@media (max-width: 600px) {
+  .task-sharing-invite {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .task-sharing-invite button {
+    justify-self: start;
+  }
+}
+
 .shared-tasks-header {
   display: grid;
   gap: 8px;

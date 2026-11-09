@@ -6,9 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"mime/multipart"
 	"net/http"
-	"strconv"
 	"time"
 )
 
@@ -62,41 +60,8 @@ func (bot *Telegram) execute(request *http.Request, method string, output any) e
 	return nil
 }
 
-func (bot *Telegram) SendPhoto(ctx context.Context, chatID int64, photo []byte, caption, appURL string) error {
-	var body bytes.Buffer
-	writer := multipart.NewWriter(&body)
-	fields := map[string]string{"chat_id": strconv.FormatInt(chatID, 10), "caption": caption}
-	markup, err := json.Marshal(map[string]any{"inline_keyboard": [][]map[string]string{{{"text": "Открыть задачи", "url": appURL}}}})
-	if err != nil {
-		return err
-	}
-	fields["reply_markup"] = string(markup)
-	for name, value := range fields {
-		if err := writer.WriteField(name, value); err != nil {
-			return err
-		}
-	}
-	file, err := writer.CreateFormFile("photo", "digest.png")
-	if err != nil {
-		return err
-	}
-	if _, err := file.Write(photo); err != nil {
-		return err
-	}
-	if err := writer.Close(); err != nil {
-		return err
-	}
-	request, err := http.NewRequestWithContext(ctx, http.MethodPost, bot.baseURL+"/bot"+bot.Token+"/sendPhoto", &body)
-	if err != nil {
-		return fmt.Errorf("telegram: invalid request")
-	}
-	request.Header.Set("Content-Type", writer.FormDataContentType())
-	return bot.execute(request, "sendPhoto", nil)
-}
-
-func (bot *Telegram) SendDigestPages(ctx context.Context, chatID int64, photos [][]byte, caption, appURL string) error {
-	for i, photo := range photos {
-		// Separate messages keep each page readable in the chat. Space them to avoid Telegram's per-chat limit.
+func (bot *Telegram) SendFormatted(ctx context.Context, chatID int64, messages []string, appURL string) error {
+	for i, text := range messages {
 		if i > 0 {
 			timer := time.NewTimer(time.Second)
 			select {
@@ -106,11 +71,17 @@ func (bot *Telegram) SendDigestPages(ctx context.Context, chatID int64, photos [
 			case <-timer.C:
 			}
 		}
-		pageCaption := caption
-		if len(photos) > 1 {
-			pageCaption += fmt.Sprintf("\nСтраница %d/%d", i+1, len(photos))
+
+		input := map[string]any{
+			"chat_id":              chatID,
+			"text":                 text,
+			"parse_mode":           "HTML",
+			"link_preview_options": map[string]bool{"is_disabled": true},
+			"reply_markup": map[string]any{
+				"inline_keyboard": [][]map[string]string{{{"text": "Открыть задачи", "url": appURL}}},
+			},
 		}
-		if err := bot.SendPhoto(ctx, chatID, photo, pageCaption, appURL); err != nil {
+		if err := bot.call(ctx, "sendMessage", input, nil); err != nil {
 			return err
 		}
 	}
