@@ -7,7 +7,6 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"deadline-tracker/internal/database"
 	"deadline-tracker/internal/domain"
 	"deadline-tracker/internal/httpx"
 	"deadline-tracker/internal/security"
@@ -63,12 +62,6 @@ func (handler *Service) Register(w http.ResponseWriter, r *http.Request) error {
 	}
 	var user domain.User
 	if err = tx.QueryRow(ctx, "INSERT INTO users(login,name,password_hash) VALUES($1,$2,$3) RETURNING id,login,name,role,disabled,created_at", input.Login, input.Name, hash).Scan(&user.ID, &user.Login, &user.Name, &user.Role, &user.Disabled, &user.CreatedAt); err != nil {
-		return err
-	}
-	if err = database.SeedUserSections(ctx, tx, user.ID); err != nil {
-		return err
-	}
-	if err = database.SeedUserCatalog(ctx, tx, user.ID); err != nil {
 		return err
 	}
 	if _, err = tx.Exec(ctx, "UPDATE invitations SET used_by=$1,used_at=now() WHERE id=$2", user.ID, inviteID); err != nil {

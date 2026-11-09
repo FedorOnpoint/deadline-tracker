@@ -1,6 +1,5 @@
 import type { CardField, Catalog, Task } from '../../shared/types';
 import { TaskCard } from '../tasks/TaskCard';
-import { CanvasToolbar } from './CanvasToolbar';
 import { usePreviewScale } from './usePreviewScale';
 import { useCanvasInteraction } from './useCanvasInteraction';
 import type { PositionedField } from './layout';
@@ -14,6 +13,9 @@ export function CardPreview({
   onSelect,
   onChange,
   busy,
+  onEditStart,
+  onEditEnd,
+  onEditField,
 }: {
   task: Task;
   fields: CardField[];
@@ -23,9 +25,22 @@ export function CardPreview({
   onSelect: (id: string | null) => void;
   onChange: (fields: CardField[]) => void;
   busy: boolean;
+  onEditStart: () => void;
+  onEditEnd: () => void;
+  onEditField: () => void;
 }) {
-  const interaction = useCanvasInteraction(fields, onChange, onSelect, busy);
+  const interaction = useCanvasInteraction(
+    fields,
+    onChange,
+    onSelect,
+    busy,
+    onEditStart,
+    onEditEnd,
+  );
   const frame = usePreviewScale();
+  const selectedField = fields.find(
+    (field) => field.id === selected && field.visibility !== 'hidden',
+  );
   function tools(field: PositionedField) {
     return (
       <>
@@ -43,7 +58,17 @@ export function CardPreview({
             onSelect(field.id);
           }}
         >
-          ⠿
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            aria-hidden="true"
+          >
+            <path d="M8 5h1m6 0h1M8 12h1m6 0h1M8 19h1m6 0h1" />
+          </svg>
         </button>
         <button
           type="button"
@@ -58,8 +83,8 @@ export function CardPreview({
             onSelect(field.id);
           }}
         >
-          <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
-            <path d="M5 13 13 5M10 13l3-3" fill="none" stroke="currentColor" strokeWidth="1.5" />
+          <svg viewBox="0 0 32 32" width="32" height="32" aria-hidden="true">
+            <path d="M23 9v7a7 7 0 0 1-7 7H9" fill="none" stroke="currentColor" strokeWidth="1.5" />
           </svg>
         </button>
       </>
@@ -85,7 +110,7 @@ export function CardPreview({
       }}
     >
       <div className="builder-preview-heading">
-        <h3>Холст карточки</h3>
+        <h3>Превью карточки</h3>
         <div className="preview-actions">
           <button
             type="button"
@@ -102,13 +127,15 @@ export function CardPreview({
             aria-pressed={frame.actualSize}
             onClick={() => frame.setActualSize(!frame.actualSize)}
           >
-            {frame.actualSize
-              ? 'Вписать в окно'
-              : `Масштаб ${Math.round(frame.scale * 100)}% · открыть 100%`}
+            {frame.actualSize ? 'По ширине окна' : 'Реальный размер'}
           </button>
         </div>
       </div>
-      <CanvasToolbar fields={fields} selected={selected} onChange={onChange} busy={busy} />
+      {selectedField && (
+        <button type="button" className="preview-edit-selected" onClick={onEditField}>
+          Настройки выбранного поля
+        </button>
+      )}
       <div ref={frame.viewport} className="preview-viewport">
         <div
           className="preview-frame"

@@ -104,6 +104,16 @@ export const fieldTypeLabels: Record<CardField['type'], string> = {
   catalog: 'Справочник',
 };
 
+export const customFieldTypes: CardField['type'][] = [
+  'text',
+  'textarea',
+  'date',
+  'datetime',
+  'number',
+  'select',
+  'checkbox',
+];
+
 export const visibilityLabels: Record<CardField['visibility'], string> = {
   summary: 'В карточке',
   details: 'В подробностях',

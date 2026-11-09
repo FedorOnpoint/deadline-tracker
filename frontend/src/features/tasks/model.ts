@@ -117,13 +117,7 @@ export function selectTasks(tasks: Task[], filters: Filters, sort: string, now: 
     })
     .sort((a, b) => {
       if (a.completed !== b.completed) return Number(a.completed) - Number(b.completed);
-      const isEmail = sort.startsWith('email');
-      if (isEmail && !a.email_date !== !b.email_date) return a.email_date ? -1 : 1;
-      const av = isEmail ? a.email_date : a.deadline;
-      const bv = isEmail ? b.email_date : b.deadline;
-      const comparison = isEmail
-        ? av.localeCompare(bv)
-        : new Date(av).getTime() - new Date(bv).getTime();
+      const comparison = new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
       return comparison * (sort.endsWith('desc') ? -1 : 1) || a.id - b.id;
     });
 }

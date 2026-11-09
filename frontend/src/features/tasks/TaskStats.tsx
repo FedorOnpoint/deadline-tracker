@@ -27,10 +27,10 @@ export function TaskStats({
       className: 'red',
     },
     {
-      label: 'Дедлайн меньше недели',
+      label: 'На ближайшую неделю',
       value: tasks.filter((task) => urgency(task, now) === 'urgent').length,
       key: 'urgent',
-      className: 'red',
+      className: 'orange',
     },
     {
       label: 'Выполнено',
@@ -45,13 +45,11 @@ export function TaskStats({
         <button
           key={statistic.label}
           className={`stat ${statistic.className} ${selectedUrgency === statistic.key && statistic.key ? 'selected' : ''}`}
+          aria-pressed={selectedUrgency === statistic.key}
           onClick={() => onSelect(statistic.key)}
         >
           <span>{statistic.label}</span>
-          <strong>{loading ? '—' : statistic.value.toString().padStart(2, '0')}</strong>
-          <span className="stat-arrow" aria-hidden="true">
-            ↗
-          </span>
+          <strong>{loading ? '—' : statistic.value}</strong>
         </button>
       ))}
     </section>

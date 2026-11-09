@@ -17,6 +17,7 @@ export type CardField = {
 };
 export type SectionDefinition = {
   key: TaskSection;
+  parent_key?: string;
   label: string;
   position: number;
   revision: number;

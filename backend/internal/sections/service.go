@@ -41,6 +41,23 @@ func (s *Service) Save(ctx context.Context, userID int64, key string, input doma
 		if err != nil {
 			return err
 		}
+		if input.ParentKey != "" {
+			parentFound := false
+			for _, section := range all {
+				if key != "" && section.ParentKey == key {
+					return domain.Invalid("Родительский раздел нельзя вложить в другой раздел")
+				}
+				if section.Key == input.ParentKey {
+					parentFound = true
+					if section.Key == key || section.ParentKey != "" {
+						return domain.Invalid("Допускаются только два уровня разделов без циклов")
+					}
+				}
+			}
+			if !parentFound {
+				return domain.Invalid("Родительский раздел не найден")
+			}
+		}
 		if key == "" {
 			if len(all) >= 100 {
 				return domain.Invalid("Допускается не более 100 разделов")
@@ -52,6 +69,15 @@ func (s *Service) Save(ctx context.Context, userID int64, key string, input doma
 		for _, old := range all {
 			if old.Key != key {
 				continue
+			}
+			if old.ParentKey != "" && input.ParentKey == "" {
+				used, err := tx.InUse(ctx, userID, key)
+				if err != nil {
+					return err
+				}
+				if used {
+					return domain.Invalid("Дочерний раздел с карточками или площадками нельзя сделать основным")
+				}
 			}
 			if old.Revision != input.Revision {
 				return domain.AlreadyExists("Раздел изменён в другом окне. Закройте конструктор и обновите данные.")
@@ -104,6 +130,9 @@ func (s *Service) Delete(ctx context.Context, userID int64, key string) error {
 		}
 		found := false
 		for _, section := range all {
+			if section.ParentKey == key {
+				return domain.AlreadyExists("Раздел содержит дочерние разделы. Сначала удалите дочерние разделы.")
+			}
 			if section.Key == key {
 				found = true
 			}
@@ -111,9 +140,7 @@ func (s *Service) Delete(ctx context.Context, userID int64, key string) error {
 		if !found {
 			return domain.ErrNotFound
 		}
-		if len(all) <= 1 {
-			return domain.Invalid("Нужно оставить хотя бы один раздел")
-		}
+
 		used, err := tx.InUse(ctx, userID, key)
 		if err != nil {
 			return err

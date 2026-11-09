@@ -1,12 +1,28 @@
 import { createContext, useContext, useLayoutEffect, useState, type ReactNode } from 'react';
 
+export const sortOptions = [
+  { value: 'deadline-asc', label: 'По возрастанию' },
+  { value: 'deadline-desc', label: 'По убыванию' },
+] as const;
+
 type Preferences = {
   theme: 'dark' | 'light';
   filtersExpanded: boolean;
+  defaultSort: (typeof sortOptions)[number]['value'];
+  defaultGrouped: boolean;
+  showCompleted: boolean;
+  showStats: boolean;
 };
 
 const storageKey = 'deadline-tracker:appearance';
-const defaults: Preferences = { theme: 'dark', filtersExpanded: true };
+const defaults: Preferences = {
+  theme: 'dark',
+  filtersExpanded: true,
+  defaultSort: 'deadline-asc',
+  defaultGrouped: false,
+  showCompleted: true,
+  showStats: true,
+};
 
 function readPreferences(): { preferences: Preferences; error: string } {
   try {
@@ -24,7 +40,25 @@ function readPreferences(): { preferences: Preferences; error: string } {
       throw new Error('Invalid appearance preferences');
     }
     return {
-      preferences: { theme: value.theme, filtersExpanded: value.filtersExpanded },
+      preferences: {
+        theme: value.theme,
+        filtersExpanded: value.filtersExpanded,
+        defaultSort:
+          sortOptions.find((option) => 'defaultSort' in value && option.value === value.defaultSort)
+            ?.value ?? defaults.defaultSort,
+        defaultGrouped:
+          'defaultGrouped' in value && typeof value.defaultGrouped === 'boolean'
+            ? value.defaultGrouped
+            : defaults.defaultGrouped,
+        showCompleted:
+          'showCompleted' in value && typeof value.showCompleted === 'boolean'
+            ? value.showCompleted
+            : defaults.showCompleted,
+        showStats:
+          'showStats' in value && typeof value.showStats === 'boolean'
+            ? value.showStats
+            : defaults.showStats,
+      },
       error: '',
     };
   } catch {

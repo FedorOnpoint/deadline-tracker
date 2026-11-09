@@ -38,6 +38,8 @@ export function useCanvasInteraction(
   onChange: (fields: CardField[]) => void,
   onSelect: (id: string) => void,
   busy: boolean,
+  onEditStart: () => void,
+  onEditEnd: () => void,
 ) {
   const root = useRef<HTMLElement>(null);
   const interaction = useRef<Interaction | null>(null);
@@ -56,6 +58,7 @@ export function useCanvasInteraction(
     event.preventDefault();
     event.stopPropagation();
     root.current.focus({ preventScroll: true });
+    onEditStart();
     const bounds = block.getBoundingClientRect();
     const group = field.visibility === 'details' ? 'details' : 'summary';
     interaction.current = {
@@ -149,7 +152,7 @@ export function useCanvasInteraction(
         ),
       };
     }
-    onChange(placeField(current.original, field.id, layout, group));
+    onChange(placeField(current.original, field.id, layout, group, current.mode === 'move'));
     const viewport = scroller?.getBoundingClientRect();
     if (viewport && scroller) {
       if (event.clientY > viewport.bottom - 28) scroller.scrollTop += 12;
@@ -164,6 +167,7 @@ export function useCanvasInteraction(
     if (root.current?.hasPointerCapture(event.pointerId))
       root.current.releasePointerCapture(event.pointerId);
     if (cancelled) onChange(current.original);
+    onEditEnd();
     setAnnouncement(
       cancelled
         ? 'Изменение отменено'
@@ -176,6 +180,7 @@ export function useCanvasInteraction(
     const current = interaction.current;
     if (!current) return;
     onChange(current.original);
+    onEditEnd();
     interaction.current = null;
     if (root.current?.hasPointerCapture(current.pointerID))
       root.current.releasePointerCapture(current.pointerID);

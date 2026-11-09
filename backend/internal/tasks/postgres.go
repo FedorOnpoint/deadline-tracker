@@ -134,6 +134,9 @@ func nullPlatform(id int64) any {
 }
 
 func (repo *postgresTransaction) CardFields(ctx context.Context, userID int64, section string) ([]domain.CardField, error) {
+	if err := database.LockLeafSection(ctx, repo.tx, userID, section); err != nil {
+		return nil, err
+	}
 	var raw []byte
 	err := repo.tx.QueryRow(ctx, `SELECT fields FROM task_sections WHERE user_id=$1 AND key=$2 FOR SHARE`, userID, section).Scan(&raw)
 	if err != nil {

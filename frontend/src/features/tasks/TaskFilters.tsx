@@ -1,21 +1,21 @@
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useState, type ReactNode } from 'react';
 import { usePreferences } from '../../shared/preferences';
 import type { Catalog } from '../../shared/types';
 import { emptyFilters, monthLabel, urgencyLabels, type Filters } from './model';
 
 type TaskFiltersProps = {
+  action: ReactNode;
   catalog: Catalog[];
   sectionPlatforms: Catalog[];
-  sectionLabel: string;
   months: string[];
   filters: Filters;
   onChange: (filters: Filters) => void;
 };
 
 export function TaskFilters({
+  action,
   catalog,
   sectionPlatforms,
-  sectionLabel,
   months,
   filters,
   onChange,
@@ -50,36 +50,37 @@ export function TaskFilters({
   }
   return (
     <section className="filter-panel" aria-label="Поиск и фильтры" data-expanded={!collapsed}>
-      <button
-        className="filter-panel-toggle"
-        aria-label={collapsed ? 'Показать поиск и фильтры' : 'Свернуть поиск и фильтры'}
-        aria-expanded={!collapsed}
-        aria-controls={panelID}
-        onClick={() => setCollapsed(!collapsed)}
-      >
-        <span className="filter-panel-title">
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 20 20"
-            fill="none"
-            aria-hidden="true"
-            className={collapsed ? '' : 'is-expanded'}
-          >
-            <path
-              d="m7 5 5 5-5 5"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-          {collapsed ? 'Показать поиск и фильтры' : 'Поиск и фильтры'}
-        </span>
-        <span className="filter-caption">
-          {activeFilters ? `Активно: ${activeFilters}` : sectionLabel}
-        </span>
-      </button>
+      <div className="filter-panel-header">
+        <button
+          className="filter-panel-toggle"
+          aria-label={collapsed ? 'Показать поиск и фильтры' : 'Свернуть поиск и фильтры'}
+          aria-expanded={!collapsed}
+          aria-controls={panelID}
+          onClick={() => setCollapsed(!collapsed)}
+        >
+          <span className="filter-panel-title">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 20 20"
+              fill="none"
+              aria-hidden="true"
+              className={collapsed ? '' : 'is-expanded'}
+            >
+              <path
+                d="m7 5 5 5-5 5"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            Поиск и фильтры
+          </span>
+          {activeFilters > 0 && <span className="filter-caption">Активно: {activeFilters}</span>}
+        </button>
+        {action}
+      </div>
       <div
         id={panelID}
         className="filter-panel-content"
@@ -89,18 +90,26 @@ export function TaskFilters({
         <div className="filter-panel-fields">
           <div className="search-row">
             <label className="search">
-              <span aria-hidden="true">⌕</span>
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                aria-hidden="true"
+              >
+                <circle cx="10.5" cy="10.5" r="6.5" />
+                <path d="m16 16 5 5" />
+              </svg>
               <input
                 type="search"
-                placeholder="Найти тему, материал, текст или ответственного…"
+                placeholder="Поиск по материалам"
                 aria-label="Поиск записей"
                 value={filters.query}
                 onChange={(e) => filter('query', e.target.value)}
               />
             </label>
-            <span className="filter-caption">
-              {activeFilters ? `Фильтров: ${activeFilters}` : sectionLabel}
-            </span>
             <button
               className="reset"
               disabled={!activeFilters}

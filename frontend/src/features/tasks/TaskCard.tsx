@@ -92,26 +92,13 @@ export function TaskCard({
         </dl>
       );
     const value = displayFieldValue(task, field, catalog);
-    const date =
-      (field.type === 'date' || field.type === 'datetime') && value
-        ? fieldDeadline(task, field)
-        : '';
-    const dated = { deadline: date, completed: task.completed };
-    const dateLevel = date ? urgency(dated, now) : 'neutral';
     return (
       <dl className="field">
         <dt className="field-label">
           <FieldIcon field={field} />
           <span>{field.label}</span>
         </dt>
-        <dd className={!value ? 'muted' : ''}>
-          {value || 'Не указано'}
-          {date && (
-            <span className={`time-left ${dateLevel}`}>
-              {remaining(dated, now, field.type === 'date' || field.id === 'deadline')}
-            </span>
-          )}
-        </dd>
+        <dd className={!value ? 'muted' : ''}>{value || 'Не указано'}</dd>
       </dl>
     );
   }
@@ -131,15 +118,6 @@ export function TaskCard({
               <span className="record-id">{task.id ? `#${task.id}` : 'Новая карточка'}</span>
             </div>
             <div className="card-badges">
-              {dates.map(({ field, deadline }) => {
-                const dated = { deadline, completed: task.completed };
-                return (
-                  <span key={field.id} className={`urgency ${urgency(dated, now)}`}>
-                    <span aria-hidden="true">●</span>
-                    {field.label} · {remaining(dated, now, true)}
-                  </span>
-                );
-              })}
               <button
                 type="button"
                 className="disclosure-hint"
@@ -150,7 +128,18 @@ export function TaskCard({
               >
                 <span className="when-closed">Подробнее</span>
                 <span className="when-open">Свернуть</span>
-                <span aria-hidden="true">⌄</span>
+                <svg
+                  className="disclosure-arrow"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  aria-hidden="true"
+                >
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
               </button>
             </div>
           </div>
@@ -160,6 +149,20 @@ export function TaskCard({
             renderField={fieldContent}
             editor={canvasEditor}
           />
+          {dates.length > 0 && (
+            <div className="card-deadlines" aria-label="Сроки карточки">
+              {dates.map(({ field, deadline }) => {
+                const dated = { deadline, completed: task.completed };
+                return (
+                  <span key={field.id} className={`urgency ${urgency(dated, now)}`}>
+                    <span className="deadline-label">{field.label}</span>
+                    <span aria-hidden="true">·</span>
+                    <span className="deadline-countdown">{remaining(dated, now, true)}</span>
+                  </span>
+                );
+              })}
+            </div>
+          )}
         </div>
         <div className="card-details" id={detailsID} aria-hidden={!open} inert={!open || undefined}>
           <div className="card-details-content">

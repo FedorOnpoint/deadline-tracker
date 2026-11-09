@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState, type FormEvent, type SetStateAction } from 'react';
 import { Modal } from '../../shared/ui/Modal';
 import { UnsavedChangesDialog } from '../../shared/ui/UnsavedChangesDialog';
 import { api } from '../../shared/api/client';
@@ -16,6 +16,8 @@ import {
 } from '../card-builder/fields';
 import { FieldEditor } from '../card-builder/FieldEditor';
 import { CardPreview } from '../card-builder/CardPreview';
+import { useEditorHistory } from '../card-builder/useEditorHistory';
+import { BuilderHistory } from '../card-builder/BuilderHistory';
 
 export function TaskForm({
   task,
@@ -47,11 +49,8 @@ export function TaskForm({
     else initialFields.push({ ...builtinFields.find((field) => field.id === 'platform_id')! });
   }
   const initialDate = task ? localDateTime(task.base_date || task.deadline) : '';
-  const [date, setDate] = useState(initialDate.split('T')[0]);
   const [showTime, setShowTime] = useState(false);
-  const [time, setTime] = useState(initialDate.split('T')[1] || '');
-  const [fields, setFields] = useState<CardField[]>(() => structuredClone(initialFields));
-  const [draft, setDraft] = useState<TaskInput>({
+  const initialDraft: TaskInput = {
     section: initialSection,
     platform_id: task?.platform_id ?? defaultPlatformID,
     specialty_ids: task ? audienceIDs(task) : [],
@@ -71,7 +70,26 @@ export function TaskForm({
     owner: task?.owner || '',
     custom_fields: { ...task?.custom_fields },
     completed: task?.completed || false,
-  });
+  };
+  const [editor, setEditor, history] = useEditorHistory(() => ({
+    fields: structuredClone(initialFields),
+    draft: initialDraft,
+    date: initialDate.split('T')[0],
+    time: initialDate.split('T')[1] || '',
+  }));
+  const { fields, draft, date, time } = editor;
+  const setFields = (value: SetStateAction<CardField[]>) =>
+    setEditor((previous) => ({
+      ...previous,
+      fields: typeof value === 'function' ? value(previous.fields) : value,
+    }));
+  const setDraft = (value: SetStateAction<TaskInput>) =>
+    setEditor((previous) => ({
+      ...previous,
+      draft: typeof value === 'function' ? value(previous.draft) : value,
+    }));
+  const setDate = (date: string) => setEditor((previous) => ({ ...previous, date }));
+  const setTime = (time: string) => setEditor((previous) => ({ ...previous, time }));
   const [selected, setSelected] = useState<string | null>(null);
   const [selectionVersion, setSelectionVersion] = useState(0);
   const [tab, setTab] = useState('settings');
@@ -143,9 +161,15 @@ export function TaskForm({
       }));
   }
 
-  async function submit(event: FormEvent) {
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError('');
+    const form = event.currentTarget;
+    if (!form.checkValidity()) {
+      setTab('settings');
+      requestAnimationFrame(() => form.reportValidity());
+      return;
+    }
     if (!baseDate()) {
       setError('Укажите корректную дату и время в вашем часовом поясе.');
       return;
@@ -321,55 +345,32 @@ export function TaskForm({
       wide
       layout="builder"
       onClose={close}
+      onKeyDown={busy ? undefined : history.onKeyDown}
     >
-      <form onSubmit={submit}>
-        <p className="form-intro">
-          Название и дата — всё, что нужно для начала. Остальные поля добавляйте по необходимости.
-        </p>
-        <div className="builder-tabs tabs" role="group" aria-label="Вид редактора">
-          <button
-            type="button"
-            className={tab === 'settings' ? 'active' : ''}
-            aria-pressed={tab === 'settings'}
-            onClick={() => setTab('settings')}
-          >
-            Настройки
-          </button>
-          <button
-            type="button"
-            className={tab === 'preview' ? 'active' : ''}
-            aria-pressed={tab === 'preview'}
-            onClick={() => setTab('preview')}
-          >
-            Превью
-          </button>
+      <form onSubmit={submit} noValidate>
+        <div className="builder-command-bar">
+          <BuilderHistory history={history} busy={busy} />
+          <div className="builder-tabs tabs" role="group" aria-label="Вид редактора">
+            <button
+              type="button"
+              className={tab === 'settings' ? 'active' : ''}
+              aria-pressed={tab === 'settings'}
+              onClick={() => setTab('settings')}
+            >
+              Поля
+            </button>
+            <button
+              type="button"
+              className={tab === 'preview' ? 'active' : ''}
+              aria-pressed={tab === 'preview'}
+              onClick={() => setTab('preview')}
+            >
+              Превью
+            </button>
+          </div>
         </div>
         <div className={`builder-layout show-${tab}`}>
           <div className="builder-settings">
-            {task && (
-              <label>
-                Раздел
-                <select
-                  disabled={busy}
-                  value={draft.section}
-                  onChange={(event) =>
-                    setDraft((previous) => ({
-                      ...previous,
-                      section: event.target.value,
-                      platform_id: 0,
-                      specialty_ids: [],
-                      specialty_id: null,
-                    }))
-                  }
-                >
-                  {sections.map((section) => (
-                    <option key={section.key} value={section.key}>
-                      {section.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            )}
             <FieldEditor
               fields={fields}
               previousFields={task?.fields ?? []}
@@ -379,29 +380,58 @@ export function TaskForm({
               onSelect={select}
               busy={busy}
               renderInput={input}
+              onEditStart={history.begin}
+              onEditEnd={history.end}
             />
-            <button
-              type="button"
-              className="save-template"
-              disabled={busy || !template}
-              onClick={() => void saveTemplate()}
-            >
-              {savingTemplate ? 'Сохранение…' : 'Сохранить набор как шаблон раздела'}
-            </button>
-            <p className="hint">
-              Шаблон содержит названия и расположение полей. Введённые значения в него не входят.
-            </p>
-            {task && (
-              <label className="check">
-                <input
-                  type="checkbox"
-                  disabled={busy}
-                  checked={draft.completed}
-                  onChange={(event) => update('completed', event.target.checked)}
-                />
-                Выполнено
-              </label>
-            )}
+            <details className="builder-extra">
+              <summary>Дополнительно</summary>
+              {task && (
+                <label>
+                  Раздел
+                  <select
+                    disabled={busy}
+                    value={draft.section}
+                    onChange={(event) =>
+                      setDraft((previous) => ({
+                        ...previous,
+                        section: event.target.value,
+                        platform_id: 0,
+                        specialty_ids: [],
+                        specialty_id: null,
+                      }))
+                    }
+                  >
+                    {sections.map((section) => (
+                      <option key={section.key} value={section.key}>
+                        {section.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              <button
+                type="button"
+                className="save-template"
+                disabled={busy || !template}
+                onClick={() => void saveTemplate()}
+              >
+                {savingTemplate ? 'Сохранение…' : 'Сохранить как шаблон'}
+              </button>
+              <p className="hint">
+                Шаблон содержит названия и расположение полей. Введённые значения в него не входят.
+              </p>
+              {task && (
+                <label className="check">
+                  <input
+                    type="checkbox"
+                    disabled={busy}
+                    checked={draft.completed}
+                    onChange={(event) => update('completed', event.target.checked)}
+                  />
+                  Выполнено
+                </label>
+              )}
+            </details>
           </div>
           <CardPreview
             task={preview}
@@ -412,6 +442,12 @@ export function TaskForm({
             onSelect={select}
             onChange={setFields}
             busy={busy}
+            onEditStart={history.begin}
+            onEditEnd={history.end}
+            onEditField={() => {
+              setTab('settings');
+              setSelectionVersion((previous) => previous + 1);
+            }}
           />
         </div>
         {notice && (
@@ -428,11 +464,12 @@ export function TaskForm({
           <UnsavedChangesDialog onContinue={() => setDiscarding(false)} onDiscard={onClose} />
         )}
         <div className="modal-actions">
+          {dirty && <span className="builder-save-status">Изменения не сохранены</span>}
           <button type="button" disabled={busy} onClick={close}>
             Отмена
           </button>
           <button className="primary" disabled={busy}>
-            {saving ? 'Сохранение…' : 'Сохранить карточку'}
+            {saving ? 'Сохранение…' : 'Сохранить'}
           </button>
         </div>
       </form>

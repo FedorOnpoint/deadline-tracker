@@ -7,12 +7,13 @@ export function usePreviewScale() {
   const [size, setSize] = useState({ width: 1200, height: 0, available: 600 });
 
   useEffect(() => {
-    // Render at the live list width; fitting changes only the preview's visual scale.
+    // Keep the editing view readable; the full list width is available on demand.
     const main = document.querySelector('main');
     const frame = viewport.current;
     const card = content.current;
     if (!main || !frame || !card) return;
     const measure = () => {
+      if (!frame.clientWidth) return;
       const styles = getComputedStyle(main);
       const width =
         main.clientWidth - parseFloat(styles.paddingLeft) - parseFloat(styles.paddingRight);
@@ -38,14 +39,14 @@ export function usePreviewScale() {
     return () => observer.disconnect();
   }, []);
 
-  const scale = actualSize ? 1 : Math.max(0, Math.min(1, size.available / size.width));
+  const scale = 1;
   return {
     viewport,
     content,
     actualSize,
     setActualSize,
     scale,
-    width: size.width,
+    width: actualSize ? size.width : size.available,
     height: size.height,
   };
 }

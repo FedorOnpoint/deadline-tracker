@@ -19,6 +19,7 @@ type CardField struct {
 
 type TaskSection struct {
 	Key           string      `json:"key"`
+	ParentKey     string      `json:"parent_key"`
 	Label         string      `json:"label"`
 	Position      int         `json:"position"`
 	Revision      int         `json:"revision"`

@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, type ReactNode } from 'react';
+import { useEffect, useId, useRef, type ReactNode, type KeyboardEventHandler } from 'react';
 
 export function Modal({
   title,
@@ -6,12 +6,14 @@ export function Modal({
   children,
   wide = false,
   layout,
+  onKeyDown,
 }: {
   title: string;
   onClose: () => void;
   children: ReactNode;
   wide?: boolean;
   layout?: 'builder';
+  onKeyDown?: KeyboardEventHandler<HTMLDialogElement>;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const titleID = useId();
@@ -38,6 +40,13 @@ export function Modal({
       ref={ref}
       className={`modal${wide ? ' wide' : ''}${layout === 'builder' ? ' builder-modal' : ''}`}
       aria-labelledby={titleID}
+      onKeyDown={(event) => {
+        if (
+          event.target instanceof Element &&
+          event.target.closest('dialog') === event.currentTarget
+        )
+          onKeyDown?.(event);
+      }}
       onCancel={(e) => {
         e.preventDefault();
         e.stopPropagation();

@@ -6,7 +6,7 @@
 }
 @media (max-width: 900px) {
   .topbar-inner {
-    padding: 18px 24px;
+    padding: 16px 24px;
   }
   main {
     padding: 32px 24px 16px;
@@ -15,23 +15,12 @@
     display: none;
   }
   .stat {
-    padding: 18px 16px;
-  }
-  .stat-arrow {
-    display: none;
-  }
-  .list-toolbar {
-    align-items: flex-start;
-  }
-  .view-controls {
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    gap: 10px;
+    padding: 16px;
   }
 }
 @media (max-width: 600px) {
   .topbar-inner {
-    padding: 14px 16px;
+    padding: 16px;
     flex-wrap: wrap;
     gap: 12px;
   }
@@ -58,15 +47,9 @@
     grid-template-columns: 1fr 1fr;
     margin-bottom: 20px;
   }
-  .section-tabs {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 6px;
-  }
   .section-tabs button {
-    justify-content: space-between;
-    padding: 10px 12px;
-    font-size: 12px;
+    padding: 8px 12px;
+    font-size: 13px;
   }
   .stat {
     padding: 16px;
@@ -78,22 +61,22 @@
     border-bottom: 1px solid var(--border);
   }
   .stat:first-child {
-    border-radius: 17px 0 0 0;
+    border-radius: 15px 0 0 0;
   }
   .stat:nth-child(2) {
-    border-radius: 0 17px 0 0;
+    border-radius: 0 15px 0 0;
   }
   .stat:nth-child(3) {
-    border-radius: 0 0 0 17px;
+    border-radius: 0 0 0 15px;
   }
   .stat:last-child {
-    border-radius: 0 0 17px 0;
+    border-radius: 0 0 15px 0;
   }
   .stat > span:first-child {
     font-size: 12px;
   }
   .stat strong {
-    font-size: 29px;
+    font-size: 28px;
   }
   .search-row {
     padding: 10px 12px;
@@ -112,24 +95,11 @@
   }
   .filters {
     grid-template-columns: 1fr;
-    padding: 14px;
+    padding: 16px;
     gap: 12px;
   }
-  .list-toolbar {
-    flex-direction: column;
-    gap: 16px;
-    margin-top: 24px;
-  }
-  .view-controls {
-    width: 100%;
-    justify-content: flex-start;
-  }
-  .view-controls > select {
-    width: 100%;
-    font-size: 14px;
-  }
   .task-card {
-    padding: 10px 16px 16px;
+    padding: 16px;
   }
   .card-top {
     align-items: flex-start;

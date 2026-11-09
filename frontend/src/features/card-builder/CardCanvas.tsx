@@ -35,6 +35,11 @@ export function CardCanvas({
       className="canvas-section"
       aria-label={visibility === 'summary' ? 'В карточке' : 'В подробностях'}
     >
+      {editor && (
+        <div className="canvas-section-label">
+          {visibility === 'summary' ? 'В карточке' : 'В подробностях'}
+        </div>
+      )}
       <div
         className={`card-canvas is-compact ${editor ? 'is-editable' : ''}`}
         data-canvas-group={visibility}

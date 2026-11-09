@@ -93,15 +93,26 @@ export function placeField(
   id: string,
   layout: CardFieldLayout,
   group?: CanvasGroup,
+  preserveNeighbors = false,
 ): CardField[] {
   const resolved = materializeLayout(fields);
   const field = resolved.find((field) => field.id === id);
   if (!field) return fields;
   const visibility = field.id === 'topic' ? 'summary' : (group ?? field.visibility);
-  const box = bounded(layout);
+  const neighbors = resolved.filter((other) => other.id !== id && other.visibility === visibility);
+  const box = preserveNeighbors
+    ? pushDown(
+        bounded(layout),
+        neighbors.map((neighbor) => neighbor.layout!),
+      )
+    : bounded(layout);
+  if (preserveNeighbors) {
+    return resolved.map((other) =>
+      other.id === id ? { ...other, visibility, layout: box } : other,
+    );
+  }
   const positions = new Map<string, CardFieldLayout>([[id, box]]);
   const occupied = [box];
-  const neighbors = resolved.filter((other) => other.id !== id && other.visibility === visibility);
   neighbors.sort(
     (first, second) => first.layout!.y - second.layout!.y || first.layout!.x - second.layout!.x,
   );

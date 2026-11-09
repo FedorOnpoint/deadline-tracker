@@ -18,7 +18,7 @@ type queryer interface {
 }
 
 func list(ctx context.Context, db queryer, userID int64, lock bool) ([]domain.TaskSection, error) {
-	sql := "SELECT key,label,position,revision,fields,deadline_field FROM task_sections WHERE user_id=$1 ORDER BY position,key"
+	sql := "SELECT key,label,position,revision,fields,deadline_field,coalesce(parent_key,'') FROM task_sections WHERE user_id=$1 ORDER BY position,key"
 	if lock {
 		sql += " FOR UPDATE"
 	}
@@ -31,7 +31,7 @@ func list(ctx context.Context, db queryer, userID int64, lock bool) ([]domain.Ta
 	for rows.Next() {
 		var section domain.TaskSection
 		var raw []byte
-		if err := rows.Scan(&section.Key, &section.Label, &section.Position, &section.Revision, &raw, &section.DeadlineField); err != nil {
+		if err := rows.Scan(&section.Key, &section.Label, &section.Position, &section.Revision, &raw, &section.DeadlineField, &section.ParentKey); err != nil {
 			return nil, err
 		}
 		if err := json.Unmarshal(raw, &section.Fields); err != nil {
@@ -63,7 +63,7 @@ func (r *postgresTransaction) Insert(ctx context.Context, userID int64, section 
 	if err != nil {
 		return err
 	}
-	_, err = r.tx.Exec(ctx, "INSERT INTO task_sections(user_id,key,label,position,revision,fields) VALUES($1,$2,$3,$4,$5,$6)", userID, section.Key, section.Label, section.Position, section.Revision, raw)
+	_, err = r.tx.Exec(ctx, "INSERT INTO task_sections(user_id,key,label,position,revision,fields,parent_key) VALUES($1,$2,$3,$4,$5,$6,NULLIF($7,''))", userID, section.Key, section.Label, section.Position, section.Revision, raw, section.ParentKey)
 	return err
 }
 
@@ -72,7 +72,7 @@ func (r *postgresTransaction) Update(ctx context.Context, userID int64, section 
 	if err != nil {
 		return err
 	}
-	_, err = r.tx.Exec(ctx, "UPDATE task_sections SET label=$3,position=$4,revision=$5,fields=$6,deadline_field=$7 WHERE user_id=$1 AND key=$2", userID, section.Key, section.Label, section.Position, section.Revision, raw, section.DeadlineField)
+	_, err = r.tx.Exec(ctx, "UPDATE task_sections SET label=$3,position=$4,revision=$5,fields=$6,deadline_field=$7,parent_key=NULLIF($8,'') WHERE user_id=$1 AND key=$2", userID, section.Key, section.Label, section.Position, section.Revision, raw, section.DeadlineField, section.ParentKey)
 	return err
 }
 

@@ -15,16 +15,18 @@
   --bg: #15181c;
   --surface: #1e242b;
   --surface-raised: #29313a;
-  --border: #3b4550;
+  --border: #343b43;
   --muted: #b1bcc8;
   --text: #edf0f3;
   --accent: #96ddc0;
   --red: #ffa09e;
+  --orange: #ffbb80;
+  --urgent-bg: #3b2e23;
   --yellow: #ead095;
   --green: #96ddc0;
-  --radius-control: 12px;
-  --radius-small: 9px;
-  --radius-panel: 18px;
+  --radius-control: 8px;
+  --radius-small: 6px;
+  --radius-panel: 16px;
   --radius-dialog: 24px;
 }
 * {
@@ -54,7 +56,7 @@ button {
   border-radius: var(--radius-control);
   background: var(--surface-raised);
   color: var(--text);
-  padding: 10px 15px;
+  padding: 8px 16px;
   font-size: 14px;
   font-weight: 500;
   line-height: 1.45;
@@ -111,7 +113,7 @@ select {
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: var(--radius-control);
-  padding: 11px 12px;
+  padding: 8px 12px;
   font-size: 14px;
   line-height: 1.5;
 }

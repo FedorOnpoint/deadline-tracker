@@ -1,7 +1,14 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { usePreferences } from '../../shared/preferences';
+import { TaskSettings } from './TaskSettings';
 import { Brand } from '../../shared/ui/Brand';
 import { Modal } from '../../shared/ui/Modal';
-import { type CatalogKind, type Task, type TaskSection } from '../../shared/types';
+import {
+  type CatalogKind,
+  type Task,
+  type TaskSection,
+  type SectionDefinition,
+} from '../../shared/types';
 import { CatalogManager } from '../catalog/CatalogManager';
 import { TaskFilters } from './TaskFilters';
 import { TaskForm } from './TaskForm';
@@ -10,6 +17,9 @@ import { TaskStats } from './TaskStats';
 import { emptyFilters, monthKey, selectTasks, type Filters } from './model';
 import { useTaskData } from './useTaskData';
 import { CardBuilder } from '../card-builder/CardBuilder';
+import { leafSections, resolveSection } from '../card-builder/sections';
+import { SectionTabs } from './SectionTabs';
+import { CreateSection } from '../card-builder/CreateSection';
 import { SectionManager } from '../card-builder/SectionManager';
 
 export default function TasksPage({ account }: { account: ReactNode }) {
@@ -34,21 +44,37 @@ export default function TasksPage({ account }: { account: ReactNode }) {
     deleteTask,
     createExamples,
   } = useTaskData();
+  const { preferences } = usePreferences();
+  const defaultFilters = { ...emptyFilters, completion: preferences.showCompleted ? '' : 'open' };
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [now, setNow] = useState(Date.now());
   const [selectedSection, setSection] = useState<TaskSection>('medznat');
-  const section = sections.some((entry) => entry.key === selectedSection)
-    ? selectedSection
-    : (sections[0]?.key ?? '');
+  const section = resolveSection(sections, selectedSection)?.key ?? '';
+  const selectableSections = leafSections(sections);
   const [filtersBySection, setFiltersBySection] = useState<Record<TaskSection, Filters>>({});
-  const filters = filtersBySection[section] ?? emptyFilters;
+  const filters = filtersBySection[section] ?? defaultFilters;
   function setFilters(next: Filters | ((previous: Filters) => Filters)) {
     setFiltersBySection((previous) => ({
       ...previous,
-      [section]: typeof next === 'function' ? next(previous[section] ?? emptyFilters) : next,
+      [section]: typeof next === 'function' ? next(previous[section] ?? defaultFilters) : next,
     }));
   }
-  const [sort, setSort] = useState('deadline-asc');
-  const [grouped, setGrouped] = useState(false);
+  const sort = preferences.defaultSort;
+  const grouped = preferences.defaultGrouped;
+  useEffect(() => {
+    setFiltersBySection((previous) =>
+      Object.fromEntries(
+        Object.entries(previous).map(([key, filters]) => [
+          key,
+          {
+            ...filters,
+            completion: preferences.showCompleted ? '' : 'open',
+            urgency: filters.urgency === 'done' ? '' : filters.urgency,
+          },
+        ]),
+      ),
+    );
+  }, [preferences.showCompleted]);
   const [form, setForm] = useState<Task | 'new' | null>(null);
   const [newPlatformID, setNewPlatformID] = useState(0);
   function newRecord(platformID = 0) {
@@ -57,6 +83,9 @@ export default function TasksPage({ account }: { account: ReactNode }) {
   }
   const [manage, setManage] = useState<CatalogKind | null>(null);
   const [manageSections, setManageSections] = useState(false);
+  const [creatingSection, setCreatingSection] = useState<{
+    parent: SectionDefinition | null;
+  } | null>(null);
   const [buildCard, setBuildCard] = useState(false);
   const [deleting, setDeleting] = useState<Task | null>(null);
   useEffect(() => {
@@ -90,67 +119,32 @@ export default function TasksPage({ account }: { account: ReactNode }) {
         <div className="topbar-inner">
           <Brand />
           <div className="topbar-actions">
-            <button
-              className="settings"
-              disabled={loading || !sections.length}
-              onClick={() => setManage('status')}
-            >
-              <span aria-hidden="true">⚙</span> Статусы и справочники
+            <button className="settings" disabled={loading} onClick={() => setSettingsOpen(true)}>
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                aria-hidden="true"
+              >
+                <path d="M4 7h16M4 17h16M9 4v6m6 4v6" />
+              </svg>
+              Настройки
             </button>
             {account}
           </div>
         </div>
       </header>
       <main>
-        <div className="page-heading">
-          <div>
-            <div className="eyebrow">МАТЕРИАЛЫ И РАССЫЛКИ</div>
-            <h1>
-              Всё в своё время<span className="accent">.</span>
-            </h1>
-            <p className="subtitle">
-              От подготовки материала до размещения — все сроки в одном месте.
-            </p>
-          </div>
-          <button
-            className="primary add-button"
-            disabled={loading || !sectionDefinition}
-            onClick={() => newRecord()}
-          >
-            <span aria-hidden="true">＋</span> Новая запись
-          </button>
-        </div>
-        <nav className="section-tabs" aria-label="Разделы задач">
-          {sections.map((taskSection) => {
-            return (
-              <button
-                key={taskSection.key}
-                aria-pressed={section === taskSection.key}
-                className={section === taskSection.key ? 'active' : ''}
-                onClick={() => setSection(taskSection.key)}
-              >
-                {taskSection.label}
-                <span className="count">
-                  {tasks.filter((task) => task.section === taskSection.key).length}
-                </span>
-              </button>
-            );
-          })}
-          <button
-            className="section-manage"
-            disabled={loading || !sections.length}
-            onClick={() => setManageSections(true)}
-          >
-            <span aria-hidden="true">＋</span> Разделы
-          </button>
-        </nav>
-        <TaskStats
-          tasks={sectionTasks}
-          now={now}
-          loading={loading}
-          sectionLabel={sectionLabel}
-          selectedUrgency={filters.urgency}
-          onSelect={(urgency) => setFilters({ ...emptyFilters, urgency })}
+        <SectionTabs
+          sections={sections}
+          tasks={tasks}
+          selected={section}
+          onSelect={setSection}
+          onCreate={(parent) => setCreatingSection({ parent })}
+          disabled={loading}
         />
         {error && (
           <div className="error banner" role="alert">
@@ -166,111 +160,120 @@ export default function TasksPage({ account }: { account: ReactNode }) {
             </button>
           </div>
         )}
-        <TaskFilters
-          catalog={catalog}
-          sectionPlatforms={sectionPlatforms}
-          sectionLabel={sectionLabel}
-          months={months}
-          filters={filters}
-          onChange={setFilters}
-        />
-        <div className="list-toolbar">
-          <h2 id="records" tabIndex={-1}>
-            {sectionLabel} <span className="count">{visible.length}</span>
-          </h2>
-          <div className="view-controls">
-            <button
-              className="builder-button"
-              disabled={loading || !sectionDefinition}
-              onClick={() => setBuildCard(true)}
-            >
-              Конструктор карточки
-            </button>
-            <div className="tabs" role="group" aria-label="Режим списка">
-              <button
-                aria-pressed={!grouped}
-                className={!grouped ? 'active' : ''}
-                onClick={() => setGrouped(false)}
-              >
-                Общий список
-              </button>
-              <button
-                aria-pressed={grouped}
-                className={grouped ? 'active' : ''}
-                onClick={() => setGrouped(true)}
-              >
-                По группам
-              </button>
-            </div>
-            <select aria-label="Сортировка" value={sort} onChange={(e) => setSort(e.target.value)}>
-              <option value="deadline-asc">Дедлайн: сначала ближайшие ↑</option>
-              <option value="deadline-desc">Дедлайн: сначала дальние ↓</option>
-              <option value="email-asc">Дата e-mail: по возрастанию ↑</option>
-              <option value="email-desc">Дата e-mail: по убыванию ↓</option>
-            </select>
-          </div>
-        </div>
-        <p className="list-note">
-          Сначала незавершённые · месяц определяется по дате e-mail, при её отсутствии — по дедлайну
-        </p>
-        {loading ? (
-          <div className="empty" role="status">
-            Загружаем редакционный план…
-          </div>
-        ) : !visible.length && !grouped ? (
-          <div className="empty">
-            <span className="empty-symbol" aria-hidden="true">
-              ▤
-            </span>
-            <h3>{sectionTasks.length ? 'Ничего не нашлось' : 'В разделе пока нет записей'}</h3>
-            <p>
-              {sectionTasks.length && 'Измените запрос или сбросьте фильтры.'}
-              {!sectionTasks.length && `Добавьте первую карточку в раздел «${sectionLabel}».`}
-            </p>
-            <div className="empty-actions">
-              {sectionTasks.length ? (
-                <button onClick={() => setFilters(emptyFilters)}>Сбросить фильтры</button>
-              ) : (
-                <>
-                  <button className="primary" onClick={() => newRecord()}>
-                    Новая карточка
-                  </button>
-                  {!tasks.length && hasActivePlatform && (
-                    <button disabled={creatingExamples} onClick={() => void createExamples()}>
-                      {creatingExamples ? 'Создание…' : 'Добавить примеры'}
-                    </button>
-                  )}
-                </>
-              )}
-            </div>
-          </div>
-        ) : (
-          <TaskList
-            tasks={visible}
-            platforms={sectionPlatforms.filter(
-              (platform) => !filters.platform || String(platform.id) === filters.platform,
+        {sectionDefinition?.parent_key ? (
+          <>
+            {preferences.showStats && (
+              <TaskStats
+                tasks={sectionTasks}
+                now={now}
+                loading={loading}
+                sectionLabel={sectionLabel}
+                selectedUrgency={filters.urgency}
+                onSelect={(urgency) => setFilters({ ...emptyFilters, urgency })}
+              />
             )}
-            onCreate={newRecord}
-            catalog={catalog}
-            fields={sectionDefinition?.fields ?? []}
-            grouped={grouped}
-            now={now}
-            busyIDs={busyIDs}
-            onEdit={setForm}
-            onDelete={(task) => {
-              dismissError();
-              setDeleting(task);
-            }}
-            onPatch={patchTask}
-          />
+            <h1 className="sr-only" id="records" tabIndex={-1}>
+              {sectionLabel}
+            </h1>
+            <TaskFilters
+              catalog={catalog}
+              sectionPlatforms={sectionPlatforms}
+              months={months}
+              filters={filters}
+              onChange={setFilters}
+              action={
+                <button
+                  className="primary add-button"
+                  disabled={loading || !sectionDefinition}
+                  onClick={() => newRecord()}
+                >
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M12 5v14M5 12h14" />
+                  </svg>
+                  Новая запись
+                </button>
+              }
+            />
+            {loading ? (
+              <div className="empty" role="status">
+                Загружаем редакционный план…
+              </div>
+            ) : !visible.length && !grouped ? (
+              <div className="empty">
+                <span className="empty-symbol" aria-hidden="true">
+                  ▤
+                </span>
+                <h3>{sectionTasks.length ? 'Ничего не нашлось' : 'В разделе пока нет записей'}</h3>
+                <p>
+                  {sectionTasks.length && 'Измените запрос или сбросьте фильтры.'}
+                  {!sectionTasks.length && `Добавьте первую карточку в раздел «${sectionLabel}».`}
+                </p>
+                <div className="empty-actions">
+                  {sectionTasks.length ? (
+                    <button onClick={() => setFilters(emptyFilters)}>Сбросить фильтры</button>
+                  ) : (
+                    <>
+                      <button className="primary" onClick={() => newRecord()}>
+                        Новая карточка
+                      </button>
+                      {!tasks.length && hasActivePlatform && (
+                        <button disabled={creatingExamples} onClick={() => void createExamples()}>
+                          {creatingExamples ? 'Создание…' : 'Добавить примеры'}
+                        </button>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <TaskList
+                tasks={visible}
+                platforms={sectionPlatforms.filter(
+                  (platform) => !filters.platform || String(platform.id) === filters.platform,
+                )}
+                onCreate={newRecord}
+                catalog={catalog}
+                fields={sectionDefinition?.fields ?? []}
+                grouped={grouped}
+                now={now}
+                busyIDs={busyIDs}
+                onEdit={setForm}
+                onDelete={(task) => {
+                  dismissError();
+                  setDeleting(task);
+                }}
+                onPatch={patchTask}
+              />
+            )}
+          </>
+        ) : (
+          <div className="empty">
+            <h3 id="records" tabIndex={-1}>
+              {sections.length ? 'Добавьте дочерний раздел' : 'Создайте первый раздел'}
+            </h3>
+            <p>
+              {sectionDefinition
+                ? `В разделе «${sectionDefinition.label}» будут дочерние разделы с карточками`
+                : 'Создайте основной раздел, а затем добавьте в него дочерние'}
+            </p>
+            <button
+              className="primary"
+              disabled={loading}
+              onClick={() => setCreatingSection({ parent: sectionDefinition ?? null })}
+            >
+              {sectionDefinition ? 'Добавить дочерний' : 'Новый раздел'}
+            </button>
+          </div>
         )}
-        <footer>
-          <span>
-            <span className="online-dot" />
-            Срочность обновляется автоматически
-          </span>
-          <span>Время браузера · {Intl.DateTimeFormat().resolvedOptions().timeZone}</span>
-        </footer>
       </main>
       {form && (
         <TaskForm
@@ -278,21 +281,52 @@ export default function TasksPage({ account }: { account: ReactNode }) {
           defaultPlatformID={newPlatformID}
           task={form === 'new' ? null : form}
           catalog={catalog}
-          sections={sections}
+          sections={selectableSections}
           onClose={() => setForm(null)}
           onSave={(input) => (form === 'new' ? createTask(input) : updateTask(form.id, input))}
           saving={saving}
           onTemplateSaved={refresh}
         />
       )}
+      {settingsOpen && (
+        <TaskSettings
+          sections={selectableSections}
+          section={section}
+          onClose={() => setSettingsOpen(false)}
+          onCatalog={(kind) => {
+            setSettingsOpen(false);
+            setManage(kind);
+          }}
+          onSections={() => {
+            setSettingsOpen(false);
+            setManageSections(true);
+          }}
+          onTemplate={(key) => {
+            setSettingsOpen(false);
+            setSection(key);
+            setBuildCard(true);
+          }}
+        />
+      )}
       {manage && (
         <CatalogManager
           catalog={catalog}
-          sections={sections}
+          sections={selectableSections}
           defaultSection={section}
           initialKind={manage}
           onClose={() => setManage(null)}
           onSaved={refresh}
+        />
+      )}
+      {creatingSection && (
+        <CreateSection
+          parent={creatingSection.parent}
+          onClose={() => setCreatingSection(null)}
+          onCreated={async (created) => {
+            await refresh();
+            setSection(created.key);
+            setCreatingSection(null);
+          }}
         />
       )}
       {manageSections && (
@@ -301,6 +335,10 @@ export default function TasksPage({ account }: { account: ReactNode }) {
           catalog={catalog}
           defaultSection={section}
           onClose={() => setManageSections(false)}
+          onCreateChild={(parent) => {
+            setManageSections(false);
+            setCreatingSection({ parent });
+          }}
           onSaved={refresh}
         />
       )}

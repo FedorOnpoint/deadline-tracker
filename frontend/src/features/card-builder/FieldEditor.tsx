@@ -1,16 +1,9 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import type { CardField } from '../../shared/types';
-import { builtinFields, standardFields, fieldTypeLabels, visibilityLabels } from './fields';
-
-const customTypes: CardField['type'][] = [
-  'text',
-  'textarea',
-  'number',
-  'date',
-  'datetime',
-  'select',
-  'checkbox',
-];
+import { fieldTypeLabels, visibilityLabels } from './fields';
+import { FieldIcon } from './FieldIcon';
+import { FieldSettings } from './FieldSettings';
+import { NewFieldPicker } from './NewFieldPicker';
 
 export function FieldEditor({
   fields,
@@ -21,6 +14,8 @@ export function FieldEditor({
   onSelect,
   busy,
   renderInput,
+  onEditStart,
+  onEditEnd,
 }: {
   fields: CardField[];
   previousFields: CardField[];
@@ -30,284 +25,150 @@ export function FieldEditor({
   onSelect: (id: string | null) => void;
   busy: boolean;
   renderInput?: (field: CardField) => ReactNode;
+  onEditStart: () => void;
+  onEditEnd: () => void;
 }) {
   const root = useRef<HTMLFieldSetElement>(null);
+  const settingsID = useId();
+  const [adding, setAdding] = useState(false);
+  const previousIDs = new Set(previousFields.map((field) => field.id));
   useEffect(() => {
     if (!selected) return;
+    const row = [
+      ...(root.current?.querySelectorAll<HTMLElement>('[data-editor-field-id]') ?? []),
+    ].find((element) => element.dataset.editorFieldId === selected);
     const container = root.current?.closest<HTMLElement>('.builder-settings');
-    if (!container) return;
-    const reveal = () => {
-      if (!container.clientHeight) return;
-      const field = [
-        ...(root.current?.querySelectorAll<HTMLElement>('[data-editor-field-id]') ?? []),
-      ].find((element) => element.dataset.editorFieldId === selected);
-      if (!field) return;
-      const top =
-        field.getBoundingClientRect().top -
-        container.getBoundingClientRect().top +
-        container.scrollTop -
-        8;
+    if (!row || !container || !container.clientHeight) return;
+    const bounds = row.getBoundingClientRect();
+    const viewport = container.getBoundingClientRect();
+    if (bounds.top < viewport.top + 64 || bounds.top > viewport.bottom - 80) {
       container.scrollTo({
-        top,
-        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches
-          ? 'instant'
-          : 'smooth',
+        top: container.scrollTop + bounds.top - viewport.top - 64,
+        behavior: 'instant',
       });
-    };
-    reveal();
-    const observer = new ResizeObserver(reveal);
-    observer.observe(container);
-    return () => observer.disconnect();
+    }
   }, [selected, selectionVersion]);
-  const [label, setLabel] = useState('');
-  const [type, setType] = useState<CardField['type']>('text');
-  const [preset, setPreset] = useState('custom');
-  const previousIDs = new Set(previousFields.map((field) => field.id));
-  const hiddenFields = fields.filter((field) => field.visibility === 'hidden');
-  const presets = [...builtinFields, ...standardFields].filter(
-    (field) => !fields.some((entry) => entry.id === field.id),
-  );
-  const available = [...hiddenFields, ...presets];
-
   function update(id: string, changes: Partial<CardField>) {
     onChange(
-      fields.map((field) => {
-        if (field.id !== id) return field;
-        const layout =
-          changes.visibility && changes.visibility !== field.visibility ? undefined : field.layout;
-        return { ...field, layout, ...changes };
-      }),
+      fields.map((field) =>
+        field.id === id
+          ? {
+              ...field,
+              layout:
+                changes.visibility && changes.visibility !== field.visibility
+                  ? undefined
+                  : field.layout,
+              ...changes,
+            }
+          : field,
+      ),
     );
   }
-
-  function add() {
-    if (fields.length >= 60 && !fields.some((field) => field.id === preset)) return;
-    let field: CardField;
-    if (preset === 'custom') {
-      if (!label.trim()) return;
-      field = {
-        id: `custom_${crypto.randomUUID()}`,
-        label: label.trim(),
-        type,
-        required: false,
-        visibility: 'summary',
-      };
-      if (type === 'select') field.options = ['Вариант 1', 'Вариант 2'];
-    } else {
-      const presetField = available.find((field) => field.id === preset);
-      if (!presetField) return;
-      field = {
-        ...structuredClone(presetField),
-        visibility: presetField.visibility === 'hidden' ? 'summary' : presetField.visibility,
-        layout: undefined,
-      };
-    }
-    onChange([...fields.filter((entry) => entry.id !== field.id), field]);
-    onSelect(field.id);
-    setLabel('');
-    setPreset('custom');
-  }
-
   return (
-    <fieldset ref={root} className="builder-fields" disabled={busy}>
+    <fieldset
+      ref={root}
+      className="builder-fields"
+      disabled={busy}
+      onFocusCapture={(event) => {
+        if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement)
+          onEditStart();
+      }}
+      onInputCapture={(event) => {
+        if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement)
+          onEditStart();
+      }}
+      onBlurCapture={(event) => {
+        if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement)
+          onEditEnd();
+      }}
+    >
       <legend className="sr-only">Поля карточки</legend>
-      {fields.map((field, index) => {
-        if (field.visibility === 'hidden') return null;
-        const core = field.id === 'topic' || field.id === 'deadline';
-        const custom = field.id.startsWith('custom_');
-        return (
+      <div className="field-editor-heading">
+        <h3>
+          Поля{' '}
+          <span className="muted">
+            {fields.filter((field) => field.visibility !== 'hidden').length}
+          </span>
+        </h3>
+        <button
+          type="button"
+          className="add-field-button"
+          aria-expanded={adding}
+          onClick={() => setAdding(!adding)}
+        >
+          Добавить поле
+        </button>
+      </div>
+      {adding && (
+        <NewFieldPicker
+          fields={fields}
+          onClose={() => setAdding(false)}
+          onAdd={(field) => {
+            onChange([...fields.filter((entry) => entry.id !== field.id), field]);
+            setAdding(false);
+            onSelect(field.id);
+          }}
+        />
+      )}
+      {fields
+        .filter((field) => field.visibility !== 'hidden')
+        .map((field) => (
           <div
             key={field.id}
             data-editor-field-id={field.id}
             className={`builder-field ${selected === field.id ? 'is-selected' : ''}`}
           >
             {renderInput && <div className="builder-value">{renderInput(field)}</div>}
-            <details open={selected === field.id}>
-              <summary
-                onClick={(event) => {
-                  event.preventDefault();
-                  onSelect(selected === field.id ? null : field.id);
-                }}
+            <button
+              type="button"
+              className="field-select"
+              aria-label={renderInput ? `Настроить поле «${field.label}»` : undefined}
+              aria-expanded={selected === field.id}
+              aria-controls={selected === field.id ? settingsID : undefined}
+              onClick={() => onSelect(selected === field.id ? null : field.id)}
+            >
+              <FieldIcon field={field} />
+              <span className="builder-field-name">
+                {renderInput ? 'Параметры' : field.label}
+                {!renderInput && (
+                  <small>
+                    {fieldTypeLabels[field.type]}
+                    {field.required ? ' · обязательное' : ''}
+                  </small>
+                )}
+              </span>
+              <span className="field-visibility">{visibilityLabels[field.visibility]}</span>
+              <svg
+                className={selected === field.id ? 'is-expanded' : ''}
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                aria-hidden="true"
               >
-                <span className="builder-field-number">{index + 1}</span>
-                <span className="builder-field-name">
-                  {renderInput ? `Настроить: ${field.label}` : field.label}
-                  {!renderInput && (
-                    <small>
-                      {fieldTypeLabels[field.type]}
-                      {field.required && ' · обязательное'}
-                    </small>
-                  )}
-                </span>
-                <span className={`field-visibility ${field.visibility}`}>
-                  {visibilityLabels[field.visibility]}
-                </span>
-                <span aria-hidden="true">{selected === field.id ? '−' : '+'}</span>
-              </summary>
-              <div className="builder-field-settings">
-                <label>
-                  Название поля
-                  <input
-                    required
-                    maxLength={150}
-                    value={field.label}
-                    onChange={(event) => update(field.id, { label: event.target.value })}
-                  />
-                </label>
-                <div className="form-grid">
-                  <label>
-                    Тип поля
-                    <select
-                      disabled={!custom || previousIDs.has(field.id)}
-                      value={field.type}
-                      onChange={(event) => {
-                        const next = event.target.value as CardField['type'];
-                        update(field.id, {
-                          type: next,
-                          options: next === 'select' ? ['Вариант 1', 'Вариант 2'] : undefined,
-                        });
-                      }}
-                    >
-                      {custom ? (
-                        customTypes.map((type) => (
-                          <option key={type} value={type}>
-                            {fieldTypeLabels[type]}
-                          </option>
-                        ))
-                      ) : (
-                        <option value={field.type}>{fieldTypeLabels[field.type]}</option>
-                      )}
-                    </select>
-                  </label>
-                  <label>
-                    Отображение
-                    <select
-                      disabled={field.id === 'topic'}
-                      value={field.visibility}
-                      onChange={(event) => {
-                        const visibility = event.target.value as CardField['visibility'];
-                        update(field.id, {
-                          visibility,
-                          required: visibility === 'hidden' ? false : field.required,
-                        });
-                      }}
-                    >
-                      <option value="summary">В карточке</option>
-                      <option value="details">В подробностях</option>
-                      {!core && <option value="hidden">Скрыто</option>}
-                    </select>
-                  </label>
-                </div>
-                {field.type === 'select' && (
-                  <label>
-                    Варианты списка — каждый с новой строки
-                    <textarea
-                      rows={3}
-                      value={(field.options ?? []).join('\n')}
-                      onChange={(event) =>
-                        update(field.id, { options: event.target.value.split('\n') })
-                      }
-                    />
-                  </label>
-                )}
-                <label className="check">
-                  <input
-                    type="checkbox"
-                    checked={field.required}
-                    disabled={core}
-                    onChange={(event) => update(field.id, { required: event.target.checked })}
-                  />
-                  Обязательное поле
-                </label>
-                <div className="builder-field-actions">
-                  {!core && (
-                    <button
-                      type="button"
-                      className="danger-subtle"
-                      onClick={() => {
-                        update(field.id, { visibility: 'hidden', required: false });
-                        onSelect(null);
-                      }}
-                    >
-                      Убрать поле
-                    </button>
-                  )}
-                </div>
-                {!core && (
-                  <p className="hint">
-                    Поле убирается из карточки. Введённое значение сохранится, если добавить его
-                    обратно.
-                  </p>
-                )}
+                <path d="m6 9 6 6 6-6" />
+              </svg>
+            </button>
+            {selected === field.id && (
+              <div id={settingsID}>
+                <FieldSettings
+                  field={field}
+                  fields={fields}
+                  typeLocked={previousIDs.has(field.id)}
+                  busy={busy}
+                  onChange={onChange}
+                  onUpdate={(changes) => update(field.id, changes)}
+                  onRemove={() => {
+                    update(field.id, { visibility: 'hidden', required: false });
+                    onSelect(null);
+                  }}
+                />
               </div>
-            </details>
-          </div>
-        );
-      })}
-      <div className="builder-add">
-        <h3>Добавить поле</h3>
-        <label>
-          Поле
-          <select value={preset} onChange={(event) => setPreset(event.target.value)}>
-            <option value="custom">Своё поле</option>
-            {hiddenFields.length > 0 && (
-              <optgroup label="Вернуть убранное поле">
-                {hiddenFields.map((field) => (
-                  <option key={field.id} value={field.id}>
-                    {field.label}
-                  </option>
-                ))}
-              </optgroup>
             )}
-            {presets.length > 0 && (
-              <optgroup label="Стандартные поля">
-                {presets.map((field) => (
-                  <option key={field.id} value={field.id}>
-                    {field.label}
-                  </option>
-                ))}
-              </optgroup>
-            )}
-          </select>
-        </label>
-        {preset === 'custom' && (
-          <div className="form-grid">
-            <label>
-              Название
-              <input
-                maxLength={150}
-                value={label}
-                onChange={(event) => setLabel(event.target.value)}
-                placeholder="Например, загрузка на платформу"
-              />
-            </label>
-            <label>
-              Тип
-              <select
-                value={type}
-                onChange={(event) => setType(event.target.value as CardField['type'])}
-              >
-                {customTypes.map((type) => (
-                  <option key={type} value={type}>
-                    {fieldTypeLabels[type]}
-                  </option>
-                ))}
-              </select>
-            </label>
           </div>
-        )}
-        <button
-          type="button"
-          disabled={
-            (fields.length >= 60 && !fields.some((field) => field.id === preset)) ||
-            (preset === 'custom' && !label.trim())
-          }
-          onClick={add}
-        >
-          ＋ Добавить поле
-        </button>
-        <span className="hint">{fields.length} / 60 полей</span>
-      </div>
+        ))}
     </fieldset>
   );
 }

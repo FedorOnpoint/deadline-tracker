@@ -26,6 +26,39 @@
 .appearance-settings .hint {
   margin-top: 0;
 }
+.task-settings,
+.settings-section {
+  display: grid;
+  gap: 16px;
+}
+.task-settings {
+  gap: 24px;
+  font-size: 14px;
+}
+.task-settings .appearance-settings {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.settings-section {
+  border-top: 1px solid var(--border);
+  padding-top: 24px;
+}
+.settings-section h3 {
+  font-size: 16px;
+  font-weight: 500;
+}
+.settings-section .hint {
+  margin: 0;
+}
+.settings-links {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.settings-links button {
+  text-align: left;
+}
 .avatar {
   width: 30px;
   height: 30px;

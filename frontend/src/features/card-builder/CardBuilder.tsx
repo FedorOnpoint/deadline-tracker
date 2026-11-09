@@ -6,6 +6,8 @@ import { UnsavedChangesDialog } from '../../shared/ui/UnsavedChangesDialog';
 import { isCustomField, earliestDeadline } from './fields';
 import { FieldEditor } from './FieldEditor';
 import { CardPreview } from './CardPreview';
+import { useEditorHistory } from './useEditorHistory';
+import { BuilderHistory } from './BuilderHistory';
 
 function previewTask(fields: CardField[], catalog: Catalog[], section: string, now: number): Task {
   const custom: Record<string, string> = {};
@@ -78,8 +80,8 @@ export function CardBuilder({
   onClose: () => void;
   onSaved: () => Promise<void>;
 }) {
-  const [fields, setFields] = useState<CardField[]>(() => structuredClone(section.fields));
-  const [selected, setSelected] = useState<string | null>(null);
+  const [fields, setFields, history] = useEditorHistory(() => structuredClone(section.fields));
+  const [selected, setSelected] = useState<string | null>(section.fields[0]?.id ?? null);
   const [selectionVersion, setSelectionVersion] = useState(0);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -119,28 +121,34 @@ export function CardBuilder({
   }
 
   return (
-    <Modal title="Шаблон карточки" wide layout="builder" onClose={close}>
-      <p className="form-intro">
-        Набор полей для новых карточек раздела «{section.label}». Существующие карточки сохранят
-        свои поля.
-      </p>
-      <div className="builder-tabs tabs" role="group" aria-label="Вид редактора">
-        <button
-          type="button"
-          className={tab === 'settings' ? 'active' : ''}
-          aria-pressed={tab === 'settings'}
-          onClick={() => setTab('settings')}
-        >
-          Настройки
-        </button>
-        <button
-          type="button"
-          className={tab === 'preview' ? 'active' : ''}
-          aria-pressed={tab === 'preview'}
-          onClick={() => setTab('preview')}
-        >
-          Превью
-        </button>
+    <Modal
+      title="Шаблон карточки"
+      wide
+      layout="builder"
+      onClose={close}
+      onKeyDown={busy ? undefined : history.onKeyDown}
+    >
+      <p className="form-intro">Новые карточки · {section.label}</p>
+      <div className="builder-command-bar">
+        <BuilderHistory history={history} busy={busy} />
+        <div className="builder-tabs tabs" role="group" aria-label="Вид редактора">
+          <button
+            type="button"
+            className={tab === 'settings' ? 'active' : ''}
+            aria-pressed={tab === 'settings'}
+            onClick={() => setTab('settings')}
+          >
+            Поля
+          </button>
+          <button
+            type="button"
+            className={tab === 'preview' ? 'active' : ''}
+            aria-pressed={tab === 'preview'}
+            onClick={() => setTab('preview')}
+          >
+            Превью
+          </button>
+        </div>
       </div>
       <div className={`builder-layout show-${tab}`}>
         <div className="builder-settings">
@@ -152,6 +160,8 @@ export function CardBuilder({
             selectionVersion={selectionVersion}
             onSelect={select}
             busy={busy}
+            onEditStart={history.begin}
+            onEditEnd={history.end}
           />
         </div>
         <CardPreview
@@ -163,6 +173,12 @@ export function CardBuilder({
           onSelect={select}
           onChange={setFields}
           busy={busy}
+          onEditStart={history.begin}
+          onEditEnd={history.end}
+          onEditField={() => {
+            setTab('settings');
+            setSelectionVersion((previous) => previous + 1);
+          }}
         />
       </div>
       {error && (
@@ -174,6 +190,7 @@ export function CardBuilder({
         <UnsavedChangesDialog onContinue={() => setDiscarding(false)} onDiscard={onClose} />
       )}
       <div className="modal-actions">
+        {dirty && <span className="builder-save-status">Изменения не сохранены</span>}
         <button disabled={busy} onClick={close}>
           Отмена
         </button>

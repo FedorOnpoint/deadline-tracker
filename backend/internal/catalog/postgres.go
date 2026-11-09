@@ -79,6 +79,11 @@ func (repo *postgresTransaction) NextPosition(ctx context.Context, userID int64,
 }
 
 func (repo *postgresTransaction) Insert(ctx context.Context, userID int64, item domain.Catalog) (int64, error) {
+	if item.Kind == "platform" {
+		if err := database.LockLeafSection(ctx, repo.tx, userID, item.Section); err != nil {
+			return 0, err
+		}
+	}
 	var id int64
 	err := repo.tx.QueryRow(ctx, "INSERT INTO catalog(kind,name,color,position,archived,section,user_id,platform_ids,reminder_text) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id", item.Kind, item.Name, item.Color, item.Position, item.Archived, item.Section, userID, item.PlatformIDs, item.ReminderText).Scan(&id)
 	return id, err
@@ -95,6 +100,11 @@ func (repo *postgresTransaction) Move(ctx context.Context, userID int64, item do
 }
 
 func (repo *postgresTransaction) Update(ctx context.Context, userID int64, item domain.Catalog) error {
+	if item.Kind == "platform" {
+		if err := database.LockLeafSection(ctx, repo.tx, userID, item.Section); err != nil {
+			return err
+		}
+	}
 	_, err := repo.tx.Exec(ctx, "UPDATE catalog SET name=$2,color=$3,position=$4,archived=$5,section=$6,platform_ids=$8,reminder_text=$9 WHERE id=$1 AND user_id=$7", item.ID, item.Name, item.Color, item.Position, item.Archived, item.Section, userID, item.PlatformIDs, item.ReminderText)
 	if err == nil && item.Kind == "platform" {
 		_, err = repo.tx.Exec(ctx, "UPDATE tasks SET section=$3 WHERE user_id=$1 AND platform_id=$2 AND section<>$3", userID, item.ID, item.Section)
