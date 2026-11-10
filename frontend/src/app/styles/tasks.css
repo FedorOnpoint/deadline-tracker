@@ -955,6 +955,11 @@ footer {
   margin-block: 8px;
 }
 
+.task-sharing-button {
+  width: 100%;
+  text-align: left;
+}
+
 .task-sharing-content {
   display: grid;
   gap: 16px;

@@ -13,6 +13,13 @@
   padding: 6px 10px;
   font-size: 13px;
 }
+.topbar-actions > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding-block: 6px;
+}
 .appearance-settings {
   display: grid;
   gap: 16px;
