@@ -1,3 +1,4 @@
+import { Guide } from '../guide/Guide';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { usePreferences } from '../../shared/preferences';
 import { TaskSettings } from './TaskSettings';
@@ -51,6 +52,7 @@ export default function TasksPage({ account }: { account: ReactNode }) {
   const defaultFilters = { ...emptyFilters, completion: preferences.showCompleted ? '' : 'open' };
   const [showShared, setShowShared] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [guideOpen, setGuideOpen] = useState(false);
   const [now, setNow] = useState(Date.now());
   const [selectedSection, setSection] = useState<TaskSection>('medznat');
   const section = resolveSection(sections, selectedSection)?.key ?? '';
@@ -148,6 +150,25 @@ export default function TasksPage({ account }: { account: ReactNode }) {
                 <path d="M4 7h16M4 17h16M9 4v6m6 4v6" />
               </svg>
               Настройки
+            </button>
+            <button
+              type="button"
+              className="settings"
+              aria-haspopup="dialog"
+              onClick={() => setGuideOpen(true)}
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                aria-hidden="true"
+              >
+                <path d="M12 5v15m0-15C9 3 5 3 2 4v15c3-1 7-1 10 1m0-15c3-2 7-2 10-1v15c-3-1-7-1-10 1" />
+              </svg>
+              Справочник
             </button>
             {account}
           </div>
@@ -323,6 +344,15 @@ export default function TasksPage({ account }: { account: ReactNode }) {
           saving={saving}
           onTemplateSaved={refresh}
           onMembersChange={updateTaskMembers}
+        />
+      )}
+      {guideOpen && (
+        <Guide
+          onClose={() => setGuideOpen(false)}
+          onSettings={() => {
+            setGuideOpen(false);
+            setSettingsOpen(true);
+          }}
         />
       )}
       {settingsOpen && (
