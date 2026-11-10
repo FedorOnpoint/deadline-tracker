@@ -366,6 +366,9 @@
   font-variant-numeric: tabular-nums;
 }
 .disclosure-hint {
+  min-width: 108px;
+  justify-content: space-between;
+  white-space: nowrap;
   display: inline-flex;
   align-items: center;
   gap: 7px;
@@ -456,14 +459,14 @@
   border-left-color: var(--green);
 }
 .card-top {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
   margin-bottom: 16px;
 }
 .card-badges {
+  grid-column: 3;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -482,6 +485,8 @@
   line-height: 1.4;
 }
 .card-kicker {
+  min-width: 0;
+  flex-wrap: wrap;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -1224,16 +1229,21 @@ footer {
 }
 
 .card-members {
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: center;
   display: flex;
   align-items: center;
+  gap: 8px;
   list-style: none;
   margin: 0;
-  padding: 0 0 0 4px;
+  padding: 0;
 }
 .card-members li {
+  position: relative;
   display: flex;
-  margin-left: -4px;
-  border: 2px solid var(--surface);
+  flex-shrink: 0;
+  border: 2px solid var(--accent);
   border-radius: 50%;
   background: var(--surface);
 }
@@ -1242,7 +1252,7 @@ footer {
   width: 28px;
   height: 28px;
   flex-basis: 28px;
-  font-size: 12px;
+  font-size: 14px;
 }
 .card-members .card-members-more {
   box-sizing: content-box;
@@ -1251,4 +1261,46 @@ footer {
   color: var(--muted);
   background: var(--surface-raised);
   font-variant-numeric: tabular-nums;
+}
+.card-member-tooltip {
+  position: absolute;
+  z-index: 2;
+  top: calc(100% + 8px);
+  right: 0;
+  width: max-content;
+  max-width: min(240px, calc(100vw - 48px));
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface-raised);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.12s ease-out;
+}
+.card-members li:hover,
+.card-members li:focus-visible {
+  z-index: 1;
+}
+.card-members li:hover .card-member-tooltip,
+.card-members li:focus-visible .card-member-tooltip {
+  opacity: 1;
+  visibility: visible;
+}
+
+@media (max-width: 600px) {
+  .card-top:has(.card-members) {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .card-top:has(.card-members) .card-badges {
+    grid-column: 2;
+  }
+  .card-top > .card-members {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
 }

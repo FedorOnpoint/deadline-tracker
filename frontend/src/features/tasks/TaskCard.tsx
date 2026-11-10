@@ -168,38 +168,40 @@ export function TaskCard({
             <div className="card-kicker">
               <span className="record-id">{task.id ? `#${task.id}` : 'Новая карточка'}</span>
               {byline}
-              {!preview && members.length > 0 && (
-                <ul className="card-members" aria-label="Доступ к карточке">
-                  {members.slice(0, 4).map((member) => (
-                    <li
-                      key={member.id}
-                      aria-label={`${member.name} (@${member.login})`}
-                      title={`${member.name} (@${member.login})`}
-                    >
-                      <UserAvatar
-                        name={member.name}
-                        src={member.has_avatar ? `/api/users/${member.id}/avatar` : undefined}
-                      />
-                    </li>
-                  ))}
-                  {members.length > 4 && (
-                    <li
-                      className="card-members-more"
-                      aria-label={members
-                        .slice(4)
-                        .map((member) => `${member.name} (@${member.login})`)
-                        .join(', ')}
-                      title={members
-                        .slice(4)
-                        .map((member) => `${member.name} (@${member.login})`)
-                        .join(', ')}
-                    >
-                      +{members.length - 4}
-                    </li>
-                  )}
-                </ul>
-              )}
             </div>
+            {!preview && members.length > 0 && (
+              <ul className="card-members" aria-label="Доступ к карточке">
+                {members.slice(0, 4).map((member) => (
+                  <li key={member.id} aria-label={`${member.name} (@${member.login})`} tabIndex={0}>
+                    <UserAvatar
+                      name={member.name}
+                      src={member.has_avatar ? `/api/users/${member.id}/avatar` : undefined}
+                    />
+                    <span className="card-member-tooltip" role="tooltip">
+                      {member.name}
+                    </span>
+                  </li>
+                ))}
+                {members.length > 4 && (
+                  <li
+                    className="card-members-more"
+                    aria-label={members
+                      .slice(4)
+                      .map((member) => `${member.name} (@${member.login})`)
+                      .join(', ')}
+                    tabIndex={0}
+                  >
+                    +{members.length - 4}
+                    <span className="card-member-tooltip" role="tooltip">
+                      {members
+                        .slice(4)
+                        .map((member) => member.name)
+                        .join(', ')}
+                    </span>
+                  </li>
+                )}
+              </ul>
+            )}
             <div className="card-badges">
               <button
                 type="button"
