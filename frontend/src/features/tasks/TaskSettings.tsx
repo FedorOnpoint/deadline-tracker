@@ -102,7 +102,7 @@ export function TaskSettings({
           <p className="hint">В списке можно временно изменить фильтры</p>
         </section>
         <section className="settings-section" aria-labelledby="catalog-settings-heading">
-          <h3 id="catalog-settings-heading">Справочники и разделы</h3>
+          <h3 id="catalog-settings-heading">Управление данными</h3>
           <div className="settings-links">
             <button onClick={() => onCatalog('status')}>Статусы</button>
             <button onClick={() => onCatalog('platform')}>Площадки</button>
