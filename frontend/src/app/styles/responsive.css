@@ -168,7 +168,15 @@
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  * {
+  *,
+  *::before,
+  *::after,
+  ::backdrop {
     transition: none !important;
+    animation: none !important;
+  }
+  ::details-content {
+    transition: none !important;
+    animation: none !important;
   }
 }

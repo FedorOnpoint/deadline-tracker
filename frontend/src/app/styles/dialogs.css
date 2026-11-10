@@ -185,3 +185,59 @@ input[type='color'] {
 .catalog-form .catalog-extra {
   flex-basis: 100%;
 }
+
+@keyframes panel-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.modal[open] {
+  animation: panel-reveal 0.18s ease-out;
+}
+
+.modal[open]::backdrop {
+  animation: backdrop-reveal 0.18s ease-out;
+}
+
+@keyframes backdrop-reveal {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.builder-extra[open] > :not(summary),
+.field-advanced[open] > :not(summary),
+.builder-field-settings,
+.builder-add {
+  animation: panel-reveal 0.18s ease-out;
+}
+
+@supports (interpolate-size: allow-keywords) and selector(details::details-content) {
+  .builder-extra,
+  .field-advanced {
+    interpolate-size: allow-keywords;
+  }
+
+  .builder-extra::details-content,
+  .field-advanced::details-content {
+    height: 0;
+    overflow: clip;
+    transition:
+      height 0.22s ease-out,
+      content-visibility 0.22s allow-discrete;
+  }
+
+  .builder-extra[open]::details-content,
+  .field-advanced[open]::details-content {
+    height: auto;
+  }
+}
