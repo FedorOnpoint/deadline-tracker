@@ -34,10 +34,11 @@ func prepareCard(task *domain.Task, previous domain.Task, template []domain.Card
 			return err
 		}
 	}
+	task.BaseDate = task.BaseDate.UTC().Truncate(time.Microsecond)
+	task.CompletedDateFields = previous.CompletedDateFields
 	if err := setDateDeadlines(task); err != nil {
 		return err
 	}
-	task.BaseDate = task.BaseDate.UTC().Truncate(time.Microsecond)
 	task.Deadline = task.Deadline.UTC().Truncate(time.Microsecond)
 	return nil
 }

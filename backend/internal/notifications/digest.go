@@ -92,7 +92,7 @@ func (service *Service) deliverDigest(ctx context.Context, userID int64, manual 
  SELECT t.id,coalesce(t.data->>'topic',''),t.deadline,coalesce(c.name,'Не задан')
  FROM tasks t
  LEFT JOIN catalog c ON c.id=t.status_id
- WHERE t.id=ANY($3::bigint[]) AND NOT t.completed AND t.deadline<$2 AND (t.user_id=$1 OR EXISTS(SELECT 1
+ WHERE t.id=ANY($3::bigint[]) AND NOT t.completed AND coalesce((t.data->>'has_active_deadlines')::boolean,true) AND t.deadline<$2 AND (t.user_id=$1 OR EXISTS(SELECT 1
  FROM task_members m
  WHERE m.task_id=t.id AND m.user_id=$1))
  ORDER BY t.deadline,t.id`, userID, time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc).AddDate(0, 0, 8), taskIDs)

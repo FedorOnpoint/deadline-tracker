@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
-import type { CardField } from '../../shared/types';
+import type { CardField, Catalog } from '../../shared/types';
 import { fieldTypeLabels, visibilityLabels } from './fields';
 import { FieldIcon } from './FieldIcon';
 import { FieldSettings } from './FieldSettings';
@@ -7,6 +7,7 @@ import { NewFieldPicker } from './NewFieldPicker';
 
 export function FieldEditor({
   fields,
+  statuses,
   previousFields,
   onChange,
   selected,
@@ -18,6 +19,7 @@ export function FieldEditor({
   onEditEnd,
 }: {
   fields: CardField[];
+  statuses: Catalog[];
   previousFields: CardField[];
   onChange: (fields: CardField[]) => void;
   selected: string | null;
@@ -156,6 +158,7 @@ export function FieldEditor({
                 <FieldSettings
                   field={field}
                   fields={fields}
+                  statuses={statuses}
                   typeLocked={previousIDs.has(field.id)}
                   busy={busy}
                   onChange={onChange}

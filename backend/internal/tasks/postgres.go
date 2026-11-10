@@ -123,19 +123,21 @@ func (repo *postgresTransaction) Update(ctx context.Context, userID, id int64, t
 
 func taskData(task domain.Task) ([]byte, error) {
 	return json.Marshal(map[string]any{
-		"specialty_ids":  task.SpecialtyIDs,
-		"sms":            task.SMS,
-		"topic":          task.Topic,
-		"project":        task.Project,
-		"header":         task.Header,
-		"preheader":      task.Preheader,
-		"comment":        task.Comment,
-		"owner":          task.Owner,
-		"custom_fields":  task.CustomFields,
-		"fields":         task.Fields,
-		"base_date":      task.BaseDate,
-		"deadline_field": task.DeadlineField,
-		"timezone":       task.Timezone,
+		"completed_date_fields": task.CompletedDateFields,
+		"has_active_deadlines":  task.HasActiveDeadlines,
+		"specialty_ids":         task.SpecialtyIDs,
+		"sms":                   task.SMS,
+		"topic":                 task.Topic,
+		"project":               task.Project,
+		"header":                task.Header,
+		"preheader":             task.Preheader,
+		"comment":               task.Comment,
+		"owner":                 task.Owner,
+		"custom_fields":         task.CustomFields,
+		"fields":                task.Fields,
+		"base_date":             task.BaseDate,
+		"deadline_field":        task.DeadlineField,
+		"timezone":              task.Timezone,
 	})
 }
 

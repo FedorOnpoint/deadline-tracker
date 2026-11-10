@@ -8,7 +8,7 @@ import { type CardField, type Catalog, type Task } from '../../shared/types';
 import { DAY, remaining, urgency } from './model';
 import { formatDate, timezone } from '../../shared/dates';
 import {
-  dateFields,
+  activeDateFields,
   displayFieldValue,
   earliestDeadline,
   fieldDeadline,
@@ -55,13 +55,15 @@ export function TaskCard({
   const status = catalog.find((entry) => entry.id === task.status_id);
   const topicID = `topic-${preview ? 'preview-' : ''}${task.id}`;
   const detailsID = `details-${preview ? 'preview-' : ''}${task.id}`;
-  const dates = dateFields(fields)
+  const dates = activeDateFields(task, fields)
     .map((field) => ({ field, deadline: fieldDeadline(task, field) }))
     .filter(({ deadline }) => Boolean(deadline));
   const deadline = earliestDeadline(task, fields);
-  const level = deadline
-    ? urgency({ ...task, deadline }, now, preferences.deadlineCalendar)
-    : 'neutral';
+  const level = urgency(
+    { ...task, deadline: deadline || task.deadline, has_active_deadlines: Boolean(deadline) },
+    now,
+    preferences.deadlineCalendar,
+  );
   const hasStatus = fields.some(
     (field) => field.id === 'status_id' && field.visibility !== 'hidden',
   );

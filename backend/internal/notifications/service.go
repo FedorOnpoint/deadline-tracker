@@ -51,11 +51,14 @@ func (service *Service) Check(ctx context.Context, id int64) error {
 	}
 	defer tx.Rollback(ctx)
 	var n Notification
-	var completed bool
+	var completed, hasActiveDeadlines bool
 	// Every writer locks the same task row. Checks and deadline/completion edits are serialized.
-	err = tx.QueryRow(ctx, `SELECT t.id,t.cycle,t.data->>'topic',coalesce(p.name,''),t.deadline,coalesce(s.name,'Не задан'),t.completed FROM tasks t LEFT JOIN catalog p ON p.id=t.platform_id LEFT JOIN catalog s ON s.id=t.status_id WHERE t.id=$1 FOR UPDATE OF t`, id).Scan(&n.TaskID, &n.Cycle, &n.Topic, &n.Platform, &n.Deadline, &n.Status, &completed)
+	err = tx.QueryRow(ctx, `SELECT t.id,t.cycle,t.data->>'topic',coalesce(p.name,''),t.deadline,coalesce(s.name,'Не задан'),t.completed,coalesce((t.data->>'has_active_deadlines')::boolean,true) FROM tasks t LEFT JOIN catalog p ON p.id=t.platform_id LEFT JOIN catalog s ON s.id=t.status_id WHERE t.id=$1 FOR UPDATE OF t`, id).Scan(&n.TaskID, &n.Cycle, &n.Topic, &n.Platform, &n.Deadline, &n.Status, &completed, &hasActiveDeadlines)
 	if err != nil {
 		return err
+	}
+	if !hasActiveDeadlines {
+		return nil
 	}
 	n.Type = "deadline_notification"
 	n.Urgency = domain.Urgency(n.Deadline, completed, time.Now())
@@ -78,7 +81,7 @@ func (service *Service) Check(ctx context.Context, id int64) error {
 	return tx.Commit(ctx)
 }
 func (service *Service) CheckAll(ctx context.Context) error {
-	rows, err := service.DB.Query(ctx, "SELECT id FROM tasks WHERE NOT completed AND deadline <= now()+interval '14 days'")
+	rows, err := service.DB.Query(ctx, "SELECT id FROM tasks WHERE NOT completed AND coalesce((data->>'has_active_deadlines')::boolean,true) AND deadline <= now()+interval '14 days'")
 	if err != nil {
 		LogDeliveryError(0, err)
 		return err

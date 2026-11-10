@@ -71,6 +71,7 @@ export function TaskForm(options: TaskFormOptions) {
         <div className={`builder-layout show-${tab}`}>
           <div className="builder-settings">
             <FieldEditor
+              statuses={catalog.filter((entry) => entry.kind === 'status')}
               fields={fields}
               previousFields={task?.fields ?? []}
               onChange={form.changeFields}

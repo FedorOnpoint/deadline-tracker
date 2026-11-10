@@ -153,6 +153,7 @@ export function CardBuilder({
       <div className={`builder-layout show-${tab}`}>
         <div className="builder-settings">
           <FieldEditor
+            statuses={catalog.filter((entry) => entry.kind === 'status')}
             fields={fields}
             previousFields={section.fields}
             onChange={setFields}

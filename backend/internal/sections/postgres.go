@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
+	"deadline-tracker/internal/catalog"
 	"deadline-tracker/internal/database"
 	"deadline-tracker/internal/domain"
 	"github.com/jackc/pgx/v5"
@@ -11,7 +12,10 @@ import (
 )
 
 type PostgresRepository struct{ DB *pgxpool.Pool }
-type postgresTransaction struct{ tx pgx.Tx }
+type postgresTransaction struct {
+	tx pgx.Tx
+	catalog.PostgresReferences
+}
 
 type queryer interface {
 	Query(context.Context, string, ...any) (pgx.Rows, error)
@@ -54,7 +58,7 @@ func (r *PostgresRepository) Transaction(ctx context.Context, run func(Transacti
 		if _, err := tx.Exec(ctx, "SELECT pg_advisory_xact_lock(71248903)"); err != nil {
 			return err
 		}
-		return run(&postgresTransaction{tx: tx})
+		return run(&postgresTransaction{tx: tx, PostgresReferences: catalog.PostgresReferences{DB: tx}})
 	})
 }
 

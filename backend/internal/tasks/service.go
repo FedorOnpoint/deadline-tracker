@@ -7,6 +7,7 @@ import (
 
 	"deadline-tracker/internal/catalog"
 	"deadline-tracker/internal/domain"
+	"deadline-tracker/internal/sections"
 )
 
 type Repository interface {
@@ -129,6 +130,9 @@ func (service *Service) save(ctx context.Context, userID, id int64, patch bool, 
 			return err
 		}
 		if err := prepareCard(&task, previous, fields, patch); err != nil {
+			return err
+		}
+		if err := sections.ValidateCompletionStatuses(ctx, tx, ownerID, task.Fields, previous.Fields); err != nil {
 			return err
 		}
 		if err := validateTask(&task); err != nil {

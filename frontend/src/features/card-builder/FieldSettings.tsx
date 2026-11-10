@@ -1,10 +1,11 @@
-import type { CardField } from '../../shared/types';
+import type { CardField, Catalog } from '../../shared/types';
 import { customFieldTypes, fieldTypeLabels } from './fields';
 import { CanvasToolbar } from './CanvasToolbar';
 
 export function FieldSettings({
   field,
   fields,
+  statuses,
   typeLocked,
   busy,
   onUpdate,
@@ -12,6 +13,7 @@ export function FieldSettings({
   onRemove,
 }: {
   field: CardField;
+  statuses: Catalog[];
   fields: CardField[];
   typeLocked: boolean;
   busy: boolean;
@@ -46,6 +48,32 @@ export function FieldSettings({
           </select>
         </label>
       )}
+      {(field.type === 'date' || field.type === 'datetime') && (
+        <label>
+          Этап выполнен при статусе
+          <select
+            value={field.completion_status_id ?? ''}
+            onChange={(event) =>
+              onUpdate({
+                completion_status_id: event.target.value ? Number(event.target.value) : undefined,
+              })
+            }
+          >
+            <option value="">Не связан со статусом</option>
+            {statuses
+              .filter((status) => !status.archived || status.id === field.completion_status_id)
+              .map((status) => (
+                <option key={status.id} value={status.id}>
+                  {status.name}
+                  {status.archived ? ' (в архиве)' : ''}
+                </option>
+              ))}
+          </select>
+          <span className="hint">
+            После выбора статуса отсчёт этого этапа прекращается. Плановая дата остаётся в карточке.
+          </span>
+        </label>
+      )}
       <CanvasToolbar fields={fields} selected={field.id} onChange={onChange} busy={busy} />
       {field.type === 'select' && (
         <label>
@@ -78,6 +106,8 @@ export function FieldSettings({
               if (type)
                 onUpdate({
                   type,
+                  completion_status_id:
+                    type === 'date' || type === 'datetime' ? field.completion_status_id : undefined,
                   options: type === 'select' ? ['Вариант 1', 'Вариант 2'] : undefined,
                 });
             }}

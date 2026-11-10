@@ -8,13 +8,14 @@ type CardFieldLayout struct {
 }
 
 type CardField struct {
-	ID         string           `json:"id"`
-	Label      string           `json:"label"`
-	Type       string           `json:"type"`
-	Required   bool             `json:"required"`
-	Visibility string           `json:"visibility"`
-	Options    []string         `json:"options,omitempty"`
-	Layout     *CardFieldLayout `json:"layout,omitempty"`
+	CompletionStatusID *int64           `json:"completion_status_id,omitempty"`
+	ID                 string           `json:"id"`
+	Label              string           `json:"label"`
+	Type               string           `json:"type"`
+	Required           bool             `json:"required"`
+	Visibility         string           `json:"visibility"`
+	Options            []string         `json:"options,omitempty"`
+	Layout             *CardFieldLayout `json:"layout,omitempty"`
 }
 
 type TaskSection struct {

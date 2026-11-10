@@ -7,6 +7,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"deadline-tracker/internal/catalog"
 	"deadline-tracker/internal/domain"
 )
 
@@ -16,6 +17,7 @@ type Repository interface {
 }
 
 type Transaction interface {
+	catalog.ReferenceReader
 	List(context.Context, int64) ([]domain.TaskSection, error)
 	Insert(context.Context, int64, domain.TaskSection) error
 	Update(context.Context, int64, domain.TaskSection) error
@@ -71,6 +73,9 @@ func (s *Service) Save(ctx context.Context, userID int64, key string, input doma
 			return domain.AlreadyExists("Раздел изменён в другом окне. Закройте конструктор и обновите данные.")
 		}
 		if err := ValidateFields(input.Fields, old.Fields); err != nil {
+			return err
+		}
+		if err := ValidateCompletionStatuses(ctx, tx, userID, input.Fields, old.Fields); err != nil {
 			return err
 		}
 		if err := ValidateDeadlineField(input.Fields, input.DeadlineField); err != nil {

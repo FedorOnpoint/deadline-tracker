@@ -8,6 +8,7 @@ export type CardFieldLayout = {
   height: number;
 };
 export type CardField = {
+  completion_status_id?: number;
   id: string;
   label: string;
   type:
@@ -48,6 +49,8 @@ export type Catalog = {
 export type TaskMember = Pick<User, 'id' | 'login' | 'name' | 'has_avatar'>;
 
 export type Task = {
+  completed_date_fields?: Record<string, { status_id: number; deadline: string }>;
+  has_active_deadlines?: boolean;
   members?: TaskMember[];
   owner_id?: number;
   specialty_ids?: number[];

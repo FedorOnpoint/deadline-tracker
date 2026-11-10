@@ -48,17 +48,37 @@ func setDateDeadlines(task *domain.Task) error {
 		}
 		task.DateDeadlines[field.ID] = date.UTC()
 	}
-	// Keep the effective deadline aligned with the most urgent visible date.
+	// Completion belongs to a particular status binding and planned date.
+	// Moving to another status preserves it; rescheduling the date starts a new stage.
+	completed := map[string]domain.CompletedDateField{}
+	task.HasActiveDeadlines = false
+	task.DeadlineField = ""
+	// Keep the effective deadline aligned with the most urgent unfinished date.
 	var earliest time.Time
 	for _, field := range task.Fields {
 		date, exists := task.DateDeadlines[field.ID]
-		if exists && (earliest.IsZero() || date.Before(earliest)) {
+		if !exists {
+			continue
+		}
+		if field.CompletionStatusID != nil {
+			saved, done := task.CompletedDateFields[field.ID]
+			if (done && saved.StatusID == *field.CompletionStatusID && saved.Deadline.Equal(date)) ||
+				(task.StatusID != nil && *task.StatusID == *field.CompletionStatusID) {
+				completed[field.ID] = domain.CompletedDateField{StatusID: *field.CompletionStatusID, Deadline: date}
+				continue
+			}
+		}
+		task.HasActiveDeadlines = true
+		if earliest.IsZero() || date.Before(earliest) {
 			earliest = date
 			task.DeadlineField = field.ID
 		}
 	}
+	task.CompletedDateFields = completed
 	if !earliest.IsZero() {
 		task.Deadline = earliest
+	} else {
+		task.Deadline = task.BaseDate
 	}
 	return nil
 }

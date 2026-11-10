@@ -50,7 +50,7 @@ export function useTaskForm({
   const template = sections.find((section) => section.key === initialSection);
   const baseDate = taskBaseDate(task, editor.date, editor.time);
   const preview = taskPreview(task, editor, baseDate, now);
-  const deadline = earliestDeadline(preview, editor.fields);
+  const deadline = earliestDeadline(preview, editor.fields) || baseDate;
   const busy = saving || savingTemplate;
   const dirty = JSON.stringify(editor) !== initialValues;
 
@@ -102,10 +102,6 @@ export function useTaskForm({
     setError('');
     if (!baseDate) {
       setError('Укажите корректную дату и время в вашем часовом поясе.');
-      return;
-    }
-    if (!deadline) {
-      setError('Укажите корректную дату.');
       return;
     }
     try {

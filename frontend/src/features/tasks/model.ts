@@ -4,7 +4,7 @@ import type { DeadlineCalendar, Task } from '../../shared/types';
 
 export type Urgency = 'done' | 'overdue' | 'urgent' | 'soon' | 'neutral';
 export const DAY = 24 * 60 * 60 * 1000;
-type DatedTask = Pick<Task, 'deadline' | 'completed' | 'timezone'>;
+type DatedTask = Pick<Task, 'deadline' | 'completed' | 'timezone' | 'has_active_deadlines'>;
 
 export function urgency(
   task: DatedTask,
@@ -12,6 +12,7 @@ export function urgency(
   calendar: DeadlineCalendar = 'calendar',
 ): Urgency {
   if (task.completed) return 'done';
+  if (task.has_active_deadlines === false) return 'neutral';
   const left = new Date(task.deadline).getTime() - now;
   if (left <= 0) return 'overdue';
   const days =

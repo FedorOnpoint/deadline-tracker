@@ -56,6 +56,11 @@ func ValidateFields(fields, previous []domain.CardField) error {
 				return domain.Invalid("Неизвестный тип поля")
 			}
 		}
+		if field.CompletionStatusID != nil {
+			if *field.CompletionStatusID <= 0 || (field.Type != "date" && field.Type != "datetime") {
+				return domain.Invalid("Завершающий статус доступен только для даты")
+			}
+		}
 		if len(field.Options) > 100 {
 			return domain.Invalid("В списке допускается не более 100 вариантов")
 		}

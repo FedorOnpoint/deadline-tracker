@@ -51,6 +51,7 @@ export function initialTaskEditor(
     owner: task?.owner || '',
     custom_fields: { ...task?.custom_fields },
     completed: task?.completed || false,
+    completed_date_fields: task?.completed_date_fields,
   };
 
   return {
@@ -90,6 +91,7 @@ export function taskPreview(
   return {
     ...input,
     fields: editor.fields,
+    has_active_deadlines: Boolean(deadline),
     deadline: deadline || new Date(now + 86400000).toISOString(),
     id: task?.id || 0,
     completed_at: task?.completed_at || null,

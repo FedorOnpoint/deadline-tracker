@@ -206,9 +206,24 @@ export function dateFields(fields: CardField[]) {
   );
 }
 
+export function isDateStageCompleted(task: TaskInput, field: CardField) {
+  if (!field.completion_status_id) return false;
+  if (task.status_id === field.completion_status_id) return true;
+  const saved = task.completed_date_fields?.[field.id];
+  return Boolean(
+    saved &&
+    saved.status_id === field.completion_status_id &&
+    new Date(saved.deadline).getTime() === new Date(fieldDeadline(task, field)).getTime(),
+  );
+}
+
+export function activeDateFields(task: TaskInput, fields: CardField[]) {
+  return dateFields(fields).filter((field) => !isDateStageCompleted(task, field));
+}
+
 export function earliestDeadline(task: TaskInput, fields: CardField[]) {
   let earliest = '';
-  for (const field of dateFields(fields)) {
+  for (const field of activeDateFields(task, fields)) {
     const date = fieldDeadline(task, field);
     if (date && (!earliest || new Date(date).getTime() < new Date(earliest).getTime())) {
       earliest = date;
