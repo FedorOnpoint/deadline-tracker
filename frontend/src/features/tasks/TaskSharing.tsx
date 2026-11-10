@@ -2,9 +2,16 @@ import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Modal } from '../../shared/ui/Modal';
 import { UserAvatar } from '../../shared/ui/UserAvatar';
+import type { TaskMember } from '../../shared/types';
 import { useTaskSharing } from './useTaskSharing';
 
-export function TaskSharing({ taskID }: { taskID: number }) {
+export function TaskSharing({
+  taskID,
+  onMembersChange,
+}: {
+  taskID: number;
+  onMembersChange: (taskID: number, members: TaskMember[]) => void;
+}) {
   const [open, setOpen] = useState(false);
   const {
     members,
@@ -17,7 +24,7 @@ export function TaskSharing({ taskID }: { taskID: number }) {
     changeLogin,
     addMember,
     removeMember,
-  } = useTaskSharing(taskID);
+  } = useTaskSharing(taskID, onMembersChange);
 
   function closePicker() {
     setOpen(false);

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../../shared/api/client';
-import type { Catalog, SectionDefinition, Task, TaskInput } from '../../shared/types';
+import type { Catalog, SectionDefinition, Task, TaskInput, TaskMember } from '../../shared/types';
 import { taskApi, type SharedTask, type TaskChanges } from './api';
 
 export function useTaskData() {
@@ -61,6 +61,16 @@ export function useTaskData() {
       ),
     );
     setTasks((tasks) => tasks.map((task) => (task.id === updatedTask.id ? updatedTask : task)));
+  }
+
+  function updateTaskMembers(taskID: number, members: TaskMember[]) {
+    dataVersion.current += 1;
+    setTasks((tasks) => tasks.map((task) => (task.id === taskID ? { ...task, members } : task)));
+    setSharedTasks((entries) =>
+      entries.map((entry) =>
+        entry.task.id === taskID ? { ...entry, task: { ...entry.task, members } } : entry,
+      ),
+    );
   }
 
   async function createTask(input: TaskInput) {
@@ -148,6 +158,7 @@ export function useTaskData() {
     retry,
     createTask,
     updateTask,
+    updateTaskMembers,
     patchTask,
     deleteTask,
     createExamples,

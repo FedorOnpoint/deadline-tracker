@@ -45,7 +45,10 @@ export type Catalog = {
   archived: boolean;
   section: TaskSection;
 };
+export type TaskMember = Pick<User, 'id' | 'login' | 'name' | 'has_avatar'>;
+
 export type Task = {
+  members?: TaskMember[];
   owner_id?: number;
   specialty_ids?: number[];
   sms?: boolean;
@@ -74,7 +77,7 @@ export type Task = {
   created_at: string;
   updated_at: string;
 };
-export type TaskInput = Omit<Task, 'id' | 'created_at' | 'updated_at' | 'completed_at'>;
+export type TaskInput = Omit<Task, 'id' | 'created_at' | 'updated_at' | 'completed_at' | 'members'>;
 
 export type User = {
   has_avatar?: boolean;

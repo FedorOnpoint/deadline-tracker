@@ -42,6 +42,7 @@ export default function TasksPage({ account }: { account: ReactNode }) {
     retry,
     createTask,
     updateTask,
+    updateTaskMembers,
     patchTask,
     deleteTask,
     createExamples,
@@ -321,6 +322,7 @@ export default function TasksPage({ account }: { account: ReactNode }) {
           onSave={(input) => (form === 'new' ? createTask(input) : updateTask(form.id, input))}
           saving={saving}
           onTemplateSaved={refresh}
+          onMembersChange={updateTaskMembers}
         />
       )}
       {settingsOpen && (

@@ -14,12 +14,7 @@ type SharedTask struct {
 	OwnerName string             `json:"owner_name"`
 }
 
-type Member struct {
-	HasAvatar bool   `json:"has_avatar"`
-	ID        int64  `json:"id"`
-	Login     string `json:"login"`
-	Name      string `json:"name"`
-}
+type Member = domain.TaskMember
 
 type SharingRepository interface {
 	ListShared(context.Context, int64) ([]SharedTask, error)

@@ -94,7 +94,9 @@ export function TaskForm(options: TaskFormOptions) {
               onEditStart={history.begin}
               onEditEnd={history.end}
             />
-            {task && canManage && <TaskSharing taskID={task.id} />}
+            {task && canManage && (
+              <TaskSharing taskID={task.id} onMembersChange={options.onMembersChange} />
+            )}
             <details className="builder-extra">
               <summary>Дополнительно</summary>
               {task && canManage && (

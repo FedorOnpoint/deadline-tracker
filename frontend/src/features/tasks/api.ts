@@ -1,5 +1,5 @@
 import { api } from '../../shared/api/client';
-import type { Task, TaskInput, Catalog, SectionDefinition } from '../../shared/types';
+import type { Task, TaskInput, Catalog, SectionDefinition, TaskMember } from '../../shared/types';
 
 export type TaskChanges = Partial<Pick<Task, 'completed' | 'status_id'>>;
 
@@ -10,7 +10,7 @@ export type SharedTask = {
   owner_name: string;
 };
 
-export type TaskMember = { has_avatar?: boolean; id: number; login: string; name: string };
+export type { TaskMember } from '../../shared/types';
 
 export const taskApi = {
   candidates: (id: number) => api<TaskMember[]>(`/tasks/${id}/candidates`),

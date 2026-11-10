@@ -13,7 +13,15 @@ type Catalog struct {
 	PlatformIDs  []int64 `json:"platform_ids"`
 	ReminderText string  `json:"reminder_text"`
 }
+type TaskMember struct {
+	ID        int64  `json:"id"`
+	Login     string `json:"login"`
+	Name      string `json:"name"`
+	HasAvatar bool   `json:"has_avatar"`
+}
+
 type Task struct {
+	Members         []TaskMember         `json:"members"`
 	OwnerID         int64                `json:"owner_id"`
 	Section         string               `json:"section"`
 	Fields          []CardField          `json:"fields,omitempty"`

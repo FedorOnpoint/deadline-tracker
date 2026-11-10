@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
 import { taskApi, type TaskMember } from './api';
 
-export function useTaskSharing(taskID: number) {
+export function useTaskSharing(
+  taskID: number,
+  onMembersChange: (taskID: number, members: TaskMember[]) => void,
+) {
   const [members, setTaskMembers] = useState<TaskMember[]>([]);
   const [users, setUsers] = useState<TaskMember[]>([]);
   const [login, setLogin] = useState('');
@@ -37,7 +40,9 @@ export function useTaskSharing(taskID: number) {
     try {
       if (member) await taskApi.removeMember(taskID, member.id);
       else await taskApi.addMember(taskID, login);
-      setTaskMembers(await taskApi.members(taskID));
+      const updatedMembers = await taskApi.members(taskID);
+      setTaskMembers(updatedMembers);
+      onMembersChange(taskID, updatedMembers);
       if (!member) setLogin('');
       setNotice(
         member ? 'Доступ отозван.' : 'Участник добавлен. Карточка доступна в разделе «Совместные».',

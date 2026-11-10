@@ -11,6 +11,14 @@ const taskJSON = `data || jsonb_build_object(
  'custom_fields', coalesce(nullif(data->'custom_fields', 'null'::jsonb), '{}'::jsonb),
  'id', id,
  'owner_id', user_id,
+ 'members', coalesce((
+   SELECT jsonb_agg(jsonb_build_object(
+     'id', u.id, 'login', u.login, 'name', u.name, 'has_avatar', u.avatar IS NOT NULL
+   ) ORDER BY lower(u.name), u.id)
+   FROM task_members m
+   JOIN users u ON u.id=m.user_id
+   WHERE m.task_id=tasks.id
+ ), '[]'::jsonb),
  'platform_id', coalesce(platform_id, 0),
  'section', section,
  'specialty_id', specialty_id,

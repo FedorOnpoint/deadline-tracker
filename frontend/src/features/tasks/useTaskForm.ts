@@ -1,6 +1,13 @@
 import { useState } from 'react';
 import { api } from '../../shared/api/client';
-import type { CardField, Catalog, SectionDefinition, Task, TaskInput } from '../../shared/types';
+import type {
+  CardField,
+  Catalog,
+  SectionDefinition,
+  Task,
+  TaskInput,
+  TaskMember,
+} from '../../shared/types';
 import { timezone } from '../../shared/dates';
 import { audienceIDs, builtinFields, changeField, earliestDeadline } from '../card-builder/fields';
 import { useEditorHistory } from '../card-builder/useEditorHistory';
@@ -15,6 +22,7 @@ export type TaskFormOptions = {
   onClose: () => void;
   onSave: (input: TaskInput) => Promise<Task>;
   onTemplateSaved: () => Promise<void>;
+  onMembersChange: (taskID: number, members: TaskMember[]) => void;
   saving: boolean;
   canManage?: boolean;
 };

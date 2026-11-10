@@ -1,3 +1,4 @@
+import { UserAvatar } from '../../shared/ui/UserAvatar';
 import { usePreferences } from '../../shared/preferences';
 import { useState, type ReactNode } from 'react';
 import { CardCanvas, type CanvasEditor } from '../card-builder/CardCanvas';
@@ -50,6 +51,7 @@ export function TaskCard({
   const { preferences } = usePreferences();
   const [expanded, setExpanded] = useState(false);
   const open = preview || expanded;
+  const members = task.members ?? [];
   const status = catalog.find((entry) => entry.id === task.status_id);
   const topicID = `topic-${preview ? 'preview-' : ''}${task.id}`;
   const detailsID = `details-${preview ? 'preview-' : ''}${task.id}`;
@@ -166,6 +168,37 @@ export function TaskCard({
             <div className="card-kicker">
               <span className="record-id">{task.id ? `#${task.id}` : 'Новая карточка'}</span>
               {byline}
+              {!preview && members.length > 0 && (
+                <ul className="card-members" aria-label="Доступ к карточке">
+                  {members.slice(0, 4).map((member) => (
+                    <li
+                      key={member.id}
+                      aria-label={`${member.name} (@${member.login})`}
+                      title={`${member.name} (@${member.login})`}
+                    >
+                      <UserAvatar
+                        name={member.name}
+                        src={member.has_avatar ? `/api/users/${member.id}/avatar` : undefined}
+                      />
+                    </li>
+                  ))}
+                  {members.length > 4 && (
+                    <li
+                      className="card-members-more"
+                      aria-label={members
+                        .slice(4)
+                        .map((member) => `${member.name} (@${member.login})`)
+                        .join(', ')}
+                      title={members
+                        .slice(4)
+                        .map((member) => `${member.name} (@${member.login})`)
+                        .join(', ')}
+                    >
+                      +{members.length - 4}
+                    </li>
+                  )}
+                </ul>
+              )}
             </div>
             <div className="card-badges">
               <button

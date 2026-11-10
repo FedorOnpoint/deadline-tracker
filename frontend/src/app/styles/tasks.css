@@ -1222,3 +1222,33 @@ footer {
   min-width: 0;
   overflow-wrap: anywhere;
 }
+
+.card-members {
+  display: flex;
+  align-items: center;
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 4px;
+}
+.card-members li {
+  display: flex;
+  margin-left: -4px;
+  border: 2px solid var(--surface);
+  border-radius: 50%;
+  background: var(--surface);
+}
+.card-members .user-avatar,
+.card-members .card-members-more {
+  width: 28px;
+  height: 28px;
+  flex-basis: 28px;
+  font-size: 12px;
+}
+.card-members .card-members-more {
+  box-sizing: content-box;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  background: var(--surface-raised);
+  font-variant-numeric: tabular-nums;
+}
