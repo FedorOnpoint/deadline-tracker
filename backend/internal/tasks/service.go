@@ -38,10 +38,18 @@ type Service struct {
 }
 
 type TaskPatch struct {
+	Destination *TaskDestination
+
 	HasStatus    bool
 	StatusID     *int64
 	HasCompleted bool
 	Completed    bool
+}
+
+type TaskDestination struct {
+	Section      string  `json:"section"`
+	PlatformID   int64   `json:"platform_id"`
+	SpecialtyIDs []int64 `json:"specialty_ids"`
 }
 
 func (service *Service) List(ctx context.Context, userID int64) ([]domain.Task, error) {
@@ -73,10 +81,16 @@ func (service *Service) Patch(ctx context.Context, userID, id int64, patch TaskP
 	if id <= 0 {
 		return domain.Task{}, domain.Invalid("Некорректный ID")
 	}
-	if !patch.HasStatus && !patch.HasCompleted {
+	if !patch.HasStatus && !patch.HasCompleted && patch.Destination == nil {
 		return domain.Task{}, domain.Invalid("Нет изменений")
 	}
 	return service.save(ctx, userID, id, true, func(task domain.Task) domain.Task {
+		if patch.Destination != nil {
+			task.Section = patch.Destination.Section
+			task.PlatformID = patch.Destination.PlatformID
+			task.SpecialtyIDs = patch.Destination.SpecialtyIDs
+			task.SpecialtyID = nil
+		}
 		if patch.HasStatus {
 			task.StatusID = patch.StatusID
 		}

@@ -1,5 +1,6 @@
-import { useId } from 'react';
-import type { SectionDefinition, Task } from '../../shared/types';
+import { useCallback, useEffect, useId, useState, type MouseEvent } from 'react';
+import { SectionContextMenu, type SectionMenuTarget } from './SectionContextMenu';
+import type { Catalog, SectionDefinition, Task } from '../../shared/types';
 
 export function SectionTabs({
   sections,
@@ -8,22 +9,78 @@ export function SectionTabs({
   onSelect,
   onCreate,
   disabled,
+  dragTarget,
+  catalog,
+  onDeleted,
 }: {
   sections: SectionDefinition[];
+  catalog: Catalog[];
+  onDeleted: () => Promise<void>;
   tasks: Task[];
   selected: string;
   onSelect: (key: string) => void;
   onCreate: (parent: SectionDefinition | null) => void;
   disabled: boolean;
+  dragTarget?: string | null;
 }) {
   const childID = useId();
-  const current = sections.find((section) => section.key === selected);
+  const [menu, setMenu] = useState<SectionMenuTarget | null>(null);
+  const closeMenu = useCallback(() => setMenu(null), []);
+  function openMenu(event: MouseEvent<HTMLButtonElement>, section: SectionDefinition) {
+    event.preventDefault();
+    if (disabled || dragTarget !== undefined) return;
+    const bounds = event.currentTarget.getBoundingClientRect();
+    setMenu({
+      section,
+      x: event.clientX || bounds.left,
+      y: event.clientY || bounds.bottom,
+      trigger: event.currentTarget,
+    });
+  }
+  let blockedReason = '';
+  if (menu) {
+    const key = menu.section.key;
+    if (sections.some((section) => section.parent_key === key))
+      blockedReason = 'Сначала удалите подразделы.';
+    else if (tasks.some((task) => task.section === key))
+      blockedReason = 'Сначала перенесите карточки в другой подраздел.';
+    else if (catalog.some((entry) => entry.kind === 'platform' && entry.section === key))
+      blockedReason = 'Сначала перенесите или удалите площадки через управление данными.';
+  }
+  const [dragSection, setDragSection] = useState<string | null>(null);
+  useEffect(() => {
+    if (dragTarget === undefined) {
+      setDragSection(null);
+      return;
+    }
+    const hovered = sections.find((section) => section.key === dragTarget);
+    if (!hovered || hovered.parent_key) return;
+    // Crossing another row of sections should not replace the intended drop targets.
+    const timer = window.setTimeout(() => setDragSection(hovered.key), 600);
+    return () => window.clearTimeout(timer);
+  }, [dragTarget, sections]);
+  const current = sections.find((section) => section.key === (dragSection ?? selected));
   const parent = sections.find((section) => section.key === current?.parent_key) ?? current;
   const children = sections.filter((section) => section.parent_key === parent?.key);
   const counts = new Map<string, number>();
   for (const task of tasks) counts.set(task.section, (counts.get(task.section) ?? 0) + 1);
   return (
-    <div className="section-navigation">
+    <div className={`section-navigation${dragTarget !== undefined ? ' is-dragging' : ''}`}>
+      {dragTarget !== undefined && (
+        <p className="section-drag-hint">
+          Задержите карточку над разделом, чтобы раскрыть его. Отпустите над подразделом · Esc —
+          отмена
+        </p>
+      )}
+      {menu && (
+        <SectionContextMenu
+          key={menu.section.key}
+          target={menu}
+          blockedReason={blockedReason}
+          onClose={closeMenu}
+          onDeleted={onDeleted}
+        />
+      )}
       <nav className="section-tabs" aria-label="Разделы задач">
         {sections
           .filter((section) => !section.parent_key)
@@ -36,6 +93,9 @@ export function SectionTabs({
             return (
               <button
                 key={section.key}
+                onContextMenu={(event) => openMenu(event, section)}
+                data-task-section={section.key}
+                data-drop-target={dragTarget === section.key || undefined}
                 type="button"
                 className={active ? 'active' : ''}
                 aria-pressed={active}
@@ -93,6 +153,9 @@ export function SectionTabs({
           {children.map((child) => (
             <button
               key={child.key}
+              onContextMenu={(event) => openMenu(event, child)}
+              data-task-section={child.key}
+              data-drop-target={dragTarget === child.key || undefined}
               type="button"
               className={selected === child.key ? 'active' : ''}
               aria-pressed={selected === child.key}

@@ -1,7 +1,10 @@
+import type { TaskDestination } from './taskMove';
 import { api } from '../../shared/api/client';
 import type { Task, TaskInput, Catalog, SectionDefinition, TaskMember } from '../../shared/types';
 
-export type TaskChanges = Partial<Pick<Task, 'completed' | 'status_id'>>;
+export type TaskChanges = Partial<Pick<Task, 'completed' | 'status_id'>> & {
+  destination?: TaskDestination;
+};
 
 export type SharedTask = {
   task: Task;

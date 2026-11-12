@@ -1,4 +1,4 @@
-import { Fragment } from 'react';
+import { Fragment, type PointerEvent } from 'react';
 import type { CardField, Catalog, Task } from '../../shared/types';
 import { monthKey, monthLabel } from './model';
 import { TaskCard } from './TaskCard';
@@ -6,6 +6,8 @@ import type { TaskChanges } from './api';
 
 type TaskListProps = {
   tasks: Task[];
+  draggingID?: number;
+  onDragStart?: (event: PointerEvent<HTMLElement>, task: Task) => void;
   catalog: Catalog[];
   fields: CardField[];
   platforms: Catalog[];
@@ -20,6 +22,8 @@ type TaskListProps = {
 
 export function TaskList({
   tasks,
+  draggingID,
+  onDragStart,
   catalog,
   fields,
   platforms,
@@ -82,6 +86,8 @@ export function TaskList({
             <TaskCard
               key={task.id}
               task={task}
+              dragging={draggingID === task.id}
+              onDragStart={onDragStart ? (event) => onDragStart(event, task) : undefined}
               catalog={catalog}
               fields={task.fields ?? fields}
               now={now}

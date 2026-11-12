@@ -70,6 +70,12 @@ func decodePatch(w http.ResponseWriter, r *http.Request) (TaskPatch, error) {
 	for key, value := range fields {
 		var err error
 		switch key {
+		case "destination":
+			var destination TaskDestination
+			if err := json.Unmarshal(value, &destination); err != nil || destination.Section == "" || destination.SpecialtyIDs == nil {
+				return patch, httpx.Invalid("Некорректный раздел для переноса")
+			}
+			patch.Destination = &destination
 		case "status_id":
 			patch.HasStatus = true
 			err = json.Unmarshal(value, &patch.StatusID)
@@ -80,7 +86,7 @@ func decodePatch(w http.ResponseWriter, r *http.Request) (TaskPatch, error) {
 			patch.HasCompleted = true
 			err = json.Unmarshal(value, &patch.Completed)
 		default:
-			return patch, httpx.Invalid("В списке можно менять только статус и выполнение")
+			return patch, httpx.Invalid("Можно менять только статус, выполнение и раздел карточки")
 		}
 		if err != nil {
 			return patch, httpx.Invalid("Некорректное значение поля")

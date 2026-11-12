@@ -1,3 +1,7 @@
+import { createPortal } from 'react-dom';
+import { useDragNavigation } from './useDragNavigation';
+import { useTaskDrag } from './useTaskDrag';
+import { moveDestination } from './taskMove';
 import { Guide } from '../guide/Guide';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { usePreferences } from '../../shared/preferences';
@@ -48,6 +52,11 @@ export default function TasksPage({ account }: { account: ReactNode }) {
     deleteTask,
     createExamples,
   } = useTaskData();
+  const { drag, start: startDrag } = useTaskDrag((task, destination) => {
+    if (!sections.some((entry) => entry.key === destination && entry.parent_key)) return;
+    void patchTask(task.id, { destination: moveDestination(task, destination, catalog) });
+  });
+  const dragNavigationRef = useDragNavigation(Boolean(drag));
   const { preferences } = usePreferences();
   const defaultFilters = { ...emptyFilters, completion: preferences.showCompleted ? '' : 'open' };
   const [showShared, setShowShared] = useState(false);
@@ -125,11 +134,32 @@ export default function TasksPage({ account }: { account: ReactNode }) {
   const months = [...new Set(sectionTasks.map(monthKey))].sort();
   const sectionDefinition = sections.find((entry) => entry.key === section);
   const sectionLabel = sectionDefinition?.label ?? 'Записи';
+  const moveTarget = sections.find((entry) => entry.key === drag?.target && entry.parent_key);
+  const moveParent = sections.find((entry) => entry.key === moveTarget?.parent_key);
+  const moveLabel =
+    moveTarget && moveTarget.key !== drag?.task.section
+      ? `Перенести в: ${moveParent?.label ?? ''} → ${moveTarget.label}`
+      : 'Отпустите над подразделом · Esc — отмена';
   async function remove() {
     if (deleting && (await deleteTask(deleting.id))) setDeleting(null);
   }
   return (
     <>
+      {drag &&
+        createPortal(
+          <>
+            <div
+              className="task-drag-preview"
+              style={{ left: drag.x, top: drag.y }}
+              aria-hidden="true"
+            >
+              <span className="record-id">#{drag.task.id}</span>
+              <strong>{drag.task.topic}</strong>
+              <span>{moveLabel}</span>
+            </div>
+          </>,
+          document.body,
+        )}
       <a className="skip-link" href="#records">
         К записям
       </a>
@@ -175,24 +205,29 @@ export default function TasksPage({ account }: { account: ReactNode }) {
         </div>
       </header>
       <main>
-        <div className="collaboration-tabs" role="group" aria-label="Доступ к карточкам">
-          <button aria-pressed={!showShared} onClick={() => setShowShared(false)}>
-            Мои карточки
-          </button>
-          <button aria-pressed={showShared} onClick={() => setShowShared(true)}>
-            Совместные · {sharedTasks.length}
-          </button>
+        <div ref={dragNavigationRef} className={`task-navigation${drag ? ' is-dragging' : ''}`}>
+          <div className="collaboration-tabs" role="group" aria-label="Доступ к карточкам">
+            <button aria-pressed={!showShared} onClick={() => setShowShared(false)}>
+              Мои карточки
+            </button>
+            <button aria-pressed={showShared} onClick={() => setShowShared(true)}>
+              Совместные · {sharedTasks.length}
+            </button>
+          </div>
+          {!showShared && (
+            <SectionTabs
+              sections={sections}
+              catalog={catalog}
+              onDeleted={refresh}
+              dragTarget={drag ? drag.target : undefined}
+              tasks={tasks}
+              selected={section}
+              onSelect={setSection}
+              onCreate={(parent) => setCreatingSection({ parent })}
+              disabled={loading}
+            />
+          )}
         </div>
-        {!showShared && (
-          <SectionTabs
-            sections={sections}
-            tasks={tasks}
-            selected={section}
-            onSelect={setSection}
-            onCreate={(parent) => setCreatingSection({ parent })}
-            disabled={loading}
-          />
-        )}
         {error && (
           <div className="error banner" role="alert">
             <span>{error}</span>
@@ -293,6 +328,8 @@ export default function TasksPage({ account }: { account: ReactNode }) {
             ) : (
               <TaskList
                 tasks={visible}
+                draggingID={drag?.task.id}
+                onDragStart={startDrag}
                 platforms={sectionPlatforms.filter(
                   (platform) => !filters.platform || String(platform.id) === filters.platform,
                 )}

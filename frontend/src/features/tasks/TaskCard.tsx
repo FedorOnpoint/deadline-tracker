@@ -1,6 +1,6 @@
 import { UserAvatar } from '../../shared/ui/UserAvatar';
 import { usePreferences } from '../../shared/preferences';
-import { useState, type ReactNode } from 'react';
+import { useState, type ReactNode, type PointerEventHandler } from 'react';
 import { CardCanvas, type CanvasEditor } from '../card-builder/CardCanvas';
 import { FieldIcon } from '../card-builder/FieldIcon';
 import { WorkStatusBadge } from '../catalog/WorkStatusBadge';
@@ -35,6 +35,8 @@ export function TaskCard({
   onPatch,
   canvasEditor,
   byline,
+  onDragStart,
+  dragging = false,
 }: {
   task: Task;
   catalog: Catalog[];
@@ -47,6 +49,8 @@ export function TaskCard({
   onPatch: (data: Partial<Pick<Task, 'completed' | 'status_id'>>) => Promise<void>;
   canvasEditor?: CanvasEditor;
   byline?: ReactNode;
+  onDragStart?: PointerEventHandler<HTMLElement>;
+  dragging?: boolean;
 }) {
   const { preferences } = usePreferences();
   const [expanded, setExpanded] = useState(false);
@@ -156,7 +160,12 @@ export function TaskCard({
     );
   }
   return (
-    <article className={`task-card ${level}`} aria-labelledby={topicID} aria-busy={busy}>
+    <article
+      className={`task-card ${level}${dragging ? ' is-dragging' : ''}`}
+      aria-labelledby={topicID}
+      aria-busy={busy}
+      onPointerDown={busy ? undefined : onDragStart}
+    >
       <div className="card-disclosure" data-expanded={open}>
         <div
           className="card-summary"
@@ -168,6 +177,33 @@ export function TaskCard({
         >
           <div className="card-top">
             <div className="card-kicker">
+              {onDragStart && (
+                <button
+                  type="button"
+                  className="task-drag-handle"
+                  data-drag-handle
+                  onContextMenu={(event) => event.preventDefault()}
+                  disabled={busy}
+                  aria-label="Перенести карточку: удерживайте для перетаскивания или нажмите для выбора раздела"
+                  title="Удерживайте и перетащите в подраздел"
+                  onClick={onEdit}
+                >
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 16 16"
+                    fill="currentColor"
+                    aria-hidden="true"
+                  >
+                    <circle cx="5" cy="3" r="1" />
+                    <circle cx="11" cy="3" r="1" />
+                    <circle cx="5" cy="8" r="1" />
+                    <circle cx="11" cy="8" r="1" />
+                    <circle cx="5" cy="13" r="1" />
+                    <circle cx="11" cy="13" r="1" />
+                  </svg>
+                </button>
+              )}
               <span className="record-id">{task.id ? `#${task.id}` : 'Новая карточка'}</span>
               {byline}
             </div>
